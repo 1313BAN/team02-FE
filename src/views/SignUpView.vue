@@ -5,13 +5,13 @@
       <div class="login-container">
         <div class="login-card">
           <div class="login-header">
-            <h1 class="login-title">로그인</h1>
-            <p class="login-subtitle">맞동산에서 나만의 동네을 찾아보세요!</p>
+            <h1 class="login-title">회원가입</h1>
+            <p class="login-subtitle">회원 정보를 입력해주세요.</p>
           </div>
 
           <form @submit.prevent="handleLogin" class="login-form">
             <div class="input-group">
-              <label for="email" class="input-label">이메일</label>
+              <label for="email" class="input-label">아이디</label>
               <input
                 type="email"
                 id="email"
@@ -43,42 +43,53 @@
               <span v-if="errors.password" class="error-message">{{ errors.password }}</span>
             </div>
 
-            <div class="form-options">
-              <label class="checkbox-wrapper">
-                <input type="checkbox" v-model="rememberMe" class="checkbox" />
-                <span class="checkmark"></span>
-                로그인 상태 유지
-              </label>
-              <RouterLink to="/findPWForm" class="forgot-link"> 비밀번호를 잊으셨나요? </RouterLink>
+            <div class="input-group">
+              <label for="email" class="input-label">이름</label>
+              <input
+                type="email"
+                id="email"
+                v-model="formData.email"
+                placeholder="이름을 입력하세요"
+                class="input-field"
+                :class="{ error: errors.email }"
+                required
+              />
+              <span v-if="errors.email" class="error-message">{{ errors.email }}</span>
+            </div>
+
+            <div class="input-group">
+              <label for="email" class="input-label">닉네임</label>
+              <input
+                type="email"
+                id="email"
+                v-model="formData.email"
+                placeholder="닉네임을 입력하세요"
+                class="input-field"
+                :class="{ error: errors.email }"
+                required
+              />
+              <span v-if="errors.email" class="error-message">{{ errors.email }}</span>
+            </div>
+
+            <div class="input-group">
+              <label for="email" class="input-label">전화번호</label>
+              <input
+                type="email"
+                id="email"
+                v-model="formData.email"
+                placeholder="010-1234-5678"
+                class="input-field"
+                :class="{ error: errors.email }"
+                required
+              />
+              <span v-if="errors.email" class="error-message">{{ errors.email }}</span>
             </div>
 
             <button type="submit" class="login-btn" :disabled="isLoading">
               <span v-if="isLoading" class="loading-spinner"></span>
-              {{ isLoading ? '로그인 중...' : '로그인' }}
+              {{ isLoading ? '회원가입 중...' : '회원가입' }}
             </button>
           </form>
-
-          <div class="divider">
-            <span>또는</span>
-          </div>
-
-          <div class="social-login">
-            <button class="social-btn google" @click="loginWithGoogle">
-              <span class="social-icon">G</span>
-              Google로 로그인
-            </button>
-            <button class="social-btn kakao" @click="loginWithKakao">
-              <span class="social-icon">K</span>
-              카카오로 로그인
-            </button>
-          </div>
-
-          <div class="signup-link">
-            <p>
-              아직 회원이 아니신가요?
-              <RouterLink to="/signUpForm" class="signup-btn">회원가입</RouterLink>
-            </p>
-          </div>
         </div>
       </div>
     </main>
@@ -143,14 +154,6 @@ export default {
         console.error('로그인 오류:', error)
         // 에러 처리
       }
-    },
-    loginWithGoogle() {
-      console.log('Google 로그인')
-      // Google OAuth 구현
-    },
-    loginWithKakao() {
-      console.log('Kakao 로그인')
-      // Kakao OAuth 구현
     },
   },
 }
@@ -379,80 +382,6 @@ export default {
   100% {
     transform: rotate(360deg);
   }
-}
-
-.divider {
-  text-align: center;
-  margin: 1.5rem 0;
-  position: relative;
-  color: #666;
-}
-
-.divider::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: rgba(255, 107, 53, 0.2);
-}
-
-.divider span {
-  background: rgba(255, 255, 255, 0.95);
-  padding: 0 1rem;
-  position: relative;
-  z-index: 1;
-}
-
-.social-login {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.social-btn {
-  padding: 0.75rem;
-  border: 2px solid transparent;
-  border-radius: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.social-btn.google {
-  background: #fff;
-  border-color: #ddd;
-  color: #333;
-}
-
-.social-btn.google:hover {
-  border-color: #4285f4;
-  box-shadow: 0 4px 12px rgba(66, 133, 244, 0.2);
-}
-
-.social-btn.kakao {
-  background: #fee500;
-  color: #000;
-}
-
-.social-btn.kakao:hover {
-  background: #ffdd00;
-  transform: translateY(-1px);
-}
-
-.social-icon {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
 }
 
 .signup-link {

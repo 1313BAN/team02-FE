@@ -58,21 +58,6 @@
             </button>
           </form>
 
-          <div class="divider">
-            <span>또는</span>
-          </div>
-
-          <div class="social-login">
-            <button class="social-btn google" @click="loginWithGoogle">
-              <span class="social-icon">G</span>
-              Google로 로그인
-            </button>
-            <button class="social-btn kakao" @click="loginWithKakao">
-              <span class="social-icon">K</span>
-              카카오로 로그인
-            </button>
-          </div>
-
           <div class="signup-link">
             <p>
               아직 회원이 아니신가요?
@@ -143,14 +128,6 @@ export default {
         console.error('로그인 오류:', error)
         // 에러 처리
       }
-    },
-    loginWithGoogle() {
-      console.log('Google 로그인')
-      // Google OAuth 구현
-    },
-    loginWithKakao() {
-      console.log('Kakao 로그인')
-      // Kakao OAuth 구현
     },
   },
 }
@@ -379,80 +356,6 @@ export default {
   100% {
     transform: rotate(360deg);
   }
-}
-
-.divider {
-  text-align: center;
-  margin: 1.5rem 0;
-  position: relative;
-  color: #666;
-}
-
-.divider::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: rgba(255, 107, 53, 0.2);
-}
-
-.divider span {
-  background: rgba(255, 255, 255, 0.95);
-  padding: 0 1rem;
-  position: relative;
-  z-index: 1;
-}
-
-.social-login {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.social-btn {
-  padding: 0.75rem;
-  border: 2px solid transparent;
-  border-radius: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.social-btn.google {
-  background: #fff;
-  border-color: #ddd;
-  color: #333;
-}
-
-.social-btn.google:hover {
-  border-color: #4285f4;
-  box-shadow: 0 4px 12px rgba(66, 133, 244, 0.2);
-}
-
-.social-btn.kakao {
-  background: #fee500;
-  color: #000;
-}
-
-.social-btn.kakao:hover {
-  background: #ffdd00;
-  transform: translateY(-1px);
-}
-
-.social-icon {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
 }
 
 .signup-link {

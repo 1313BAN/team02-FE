@@ -28,7 +28,6 @@ import { RouterLink } from 'vue-router'
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   padding: 1rem 0;
   min-height: 4rem;
-  position: fixed;
   top: 0;
   left: 0;
   right: 0;
