@@ -362,8 +362,16 @@ const locationSearch = async () => {
       const roadNmBubun = item.roadNmBubun
       const aptNm = item.aptNm
       const address = `${selectedSido.value} ${selectedGungu.value} ${roadNm} ${roadNmBonbun}${roadNmBubun != 0 ? '-' + roadNmBubun : ''} ${aptNm}`
+      let utmkObject = {
+        data: {
+          x: item.x,
+          y: item.y,
+        },
+      }
 
-      const utmkObject = await api.get('/map/coords?address=' + address)
+      if (item.x == 0 && item.y == 0) {
+        utmkObject = await api.get('/map/coords?address=' + address)
+      }
 
       properties.value.push({
         aptSeq: aptSeq,
@@ -375,11 +383,24 @@ const locationSearch = async () => {
 
     // Update SGIS map with search results
     await updateSgisMap(properties.value)
+    await insertDB()
   } catch (error) {
     console.error('Search failed:', error)
   } finally {
     isLoading.value = false
   }
+}
+
+const insertDB = async () => {
+  const infos = []
+  for (const item of properties.value) {
+    infos.push({
+      aptSeq: item.aptSeq,
+      x: item.utmk.data.x,
+      y: item.utmk.data.y,
+    })
+  }
+  await api.post('/map/coord', infos)
 }
 
 const updateSearchInfo = () => {
