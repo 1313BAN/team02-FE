@@ -70,67 +70,111 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'LoginPage',
-  data() {
-    return {
-      formData: {
-        email: '',
-        password: '',
-      },
-      errors: {},
-      showPassword: false,
-      rememberMe: false,
-      isLoading: false,
-    }
-  },
-  methods: {
-    togglePassword() {
-      this.showPassword = !this.showPassword
-    },
-    validateForm() {
-      this.errors = {}
+<script setup>
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
-      if (!this.formData.email) {
-        this.errors.email = '이메일을 입력해주세요.'
-      } else if (!this.isValidEmail(this.formData.email)) {
-        this.errors.email = '올바른 이메일 형식이 아닙니다.'
-      }
+// Composables
+const router = useRouter()
 
-      if (!this.formData.password) {
-        this.errors.password = '비밀번호를 입력해주세요.'
-      } else if (this.formData.password.length < 6) {
-        this.errors.password = '비밀번호는 6자 이상이어야 합니다.'
-      }
+// Reactive state
+const formData = reactive({
+  email: '',
+  password: '',
+})
 
-      return Object.keys(this.errors).length === 0
-    },
-    isValidEmail(email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      return emailRegex.test(email)
-    },
-    async handleLogin() {
-      if (!this.validateForm()) return
+const errors = reactive({})
+const showPassword = ref(false)
+const rememberMe = ref(false)
+const isLoading = ref(false)
 
-      this.isLoading = true
-      try {
-        // 실제 로그인 API 호출
-        console.log('로그인 시도:', this.formData)
-
-        // 임시 로그인 처리 (실제 구현 시 API 호출)
-        setTimeout(() => {
-          this.isLoading = false
-          this.$router.push('/')
-        }, 1000)
-      } catch (error) {
-        this.isLoading = false
-        console.error('로그인 오류:', error)
-        // 에러 처리
-      }
-    },
-  },
+// Methods
+const togglePassword = () => {
+  showPassword.value = !showPassword.value
 }
+
+const validateForm = () => {
+  // Clear previous errors
+  Object.keys(errors).forEach((key) => delete errors[key])
+
+  // 이메일 validation
+  if (!formData.email) {
+    errors.email = '이메일을 입력해주세요.'
+  } else if (!isValidEmail(formData.email)) {
+    errors.email = '올바른 이메일 형식이 아닙니다.'
+  }
+
+  // 비밀번호 validation
+  if (!formData.password) {
+    errors.password = '비밀번호를 입력해주세요.'
+  } else if (formData.password.length < 6) {
+    errors.password = '비밀번호는 6자 이상이어야 합니다.'
+  } else if (formData.password.length > 20) {
+    errors.password = '비밀번호는 20자 이하여야 합니다.'
+  }
+
+  return Object.keys(errors).length === 0
+}
+
+const isValidEmail = (email) => {
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+  return emailRegex.test(email)
+}
+
+const handleLogin = async () => {
+  if (!validateForm()) return
+
+  isLoading.value = true
+  try {
+    // 실제 로그인 API 호출
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: formData.email,
+        password: formData.password,
+        rememberMe: rememberMe.value,
+      }),
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      // 로그인 성공
+      localStorage.setItem('token', data.token)
+      if (rememberMe.value) {
+        localStorage.setItem('userEmail', formData.email)
+      }
+      router.push('/')
+    } else {
+      // 로그인 실패
+      if (data.message === 'Invalid email') {
+        errors.email = '존재하지 않는 이메일입니다.'
+      } else if (data.message === 'Invalid password') {
+        errors.password = '비밀번호가 일치하지 않습니다.'
+      } else {
+        errors.email = '로그인에 실패했습니다.'
+      }
+    }
+  } catch (error) {
+    console.error('로그인 오류:', error)
+    errors.email = '서버 연결에 실패했습니다.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Lifecycle
+onMounted(() => {
+  // 이전에 저장된 이메일이 있으면 불러오기
+  const savedEmail = localStorage.getItem('userEmail')
+  if (savedEmail) {
+    formData.email = savedEmail
+    rememberMe.value = true
+  }
+})
 </script>
 
 <style scoped>

@@ -9,7 +9,7 @@
             <p class="login-subtitle">회원가입한 이메일과 이름을 입력해주세요.</p>
           </div>
 
-          <form @submit.prevent="handleLogin" class="login-form">
+          <form @submit.prevent="handleFindPassword" class="login-form">
             <div class="input-group">
               <label for="email" class="input-label">아이디</label>
               <input
@@ -25,91 +25,130 @@
             </div>
 
             <div class="input-group">
-              <label for="email" class="input-label">이름</label>
+              <label for="name" class="input-label">이름</label>
               <input
-                type="email"
-                id="email"
-                v-model="formData.email"
+                type="text"
+                id="name"
+                v-model="formData.name"
                 placeholder="이름을 입력하세요"
                 class="input-field"
-                :class="{ error: errors.email }"
+                :class="{ error: errors.name }"
                 required
               />
-              <span v-if="errors.email" class="error-message">{{ errors.email }}</span>
+              <span v-if="errors.name" class="error-message">{{ errors.name }}</span>
             </div>
-
 
             <button type="submit" class="login-btn" :disabled="isLoading">
               <span v-if="isLoading" class="loading-spinner"></span>
               {{ isLoading ? '비밀번호 찾기 중...' : '비밀번호 찾기' }}
             </button>
           </form>
+
+          <div class="signup-link">
+            <p>
+              <RouterLink to="/loginForm" class="signup-btn">로그인으로 돌아가기</RouterLink>
+            </p>
+          </div>
         </div>
       </div>
     </main>
   </div>
 </template>
 
-<script>
-export default {
-  name: 'LoginPage',
-  data() {
-    return {
-      formData: {
-        email: '',
-        password: '',
+<script setup>
+import { ref, reactive } from 'vue'
+import { useRouter } from 'vue-router'
+
+// Composables
+const router = useRouter()
+
+// Reactive state
+const formData = reactive({
+  email: '',
+  name: '',
+})
+
+const errors = reactive({})
+const isLoading = ref(false)
+const resetSuccess = ref(false)
+
+// Methods
+const validateForm = () => {
+  // Clear previous errors
+  Object.keys(errors).forEach((key) => delete errors[key])
+
+  // 이메일 validation
+  if (!formData.email) {
+    errors.email = '이메일을 입력해주세요.'
+  } else if (!isValidEmail(formData.email)) {
+    errors.email = '올바른 이메일 형식이 아닙니다.'
+  }
+
+  // 이름 validation
+  if (!formData.name) {
+    errors.name = '이름을 입력해주세요.'
+  } else if (formData.name.length < 2) {
+    errors.name = '이름은 2자 이상이어야 합니다.'
+  } else if (formData.name.length > 10) {
+    errors.name = '이름은 10자 이하여야 합니다.'
+  } else if (!isValidName(formData.name)) {
+    errors.name = '이름은 한글, 영문만 입력 가능합니다.'
+  }
+
+  return Object.keys(errors).length === 0
+}
+
+const isValidEmail = (email) => {
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+  return emailRegex.test(email)
+}
+
+const isValidName = (name) => {
+  // 한글, 영문, 공백만 허용
+  const nameRegex = /^[가-힣a-zA-Z\s]+$/
+  return nameRegex.test(name)
+}
+
+const handleFindPassword = async () => {
+  if (!validateForm()) return
+
+  isLoading.value = true
+  try {
+    // 비밀번호 찾기 API 호출
+    const response = await fetch('/api/auth/find-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-      errors: {},
-      showPassword: false,
-      rememberMe: false,
-      isLoading: false,
+      body: JSON.stringify({
+        email: formData.email,
+        name: formData.name,
+      }),
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      // 비밀번호 재설정 이메일 발송 성공
+      resetSuccess.value = true
+      alert('비밀번호 재설정 링크가 이메일로 발송되었습니다.')
+      router.push('/loginForm')
+    } else {
+      // 실패 처리
+      if (data.message === 'User not found') {
+        errors.email = '등록되지 않은 이메일입니다.'
+      } else if (data.message === 'Name mismatch') {
+        errors.name = '이름이 일치하지 않습니다.'
+      } else {
+        errors.email = '비밀번호 찾기에 실패했습니다.'
+      }
     }
-  },
-  methods: {
-    togglePassword() {
-      this.showPassword = !this.showPassword
-    },
-    validateForm() {
-      this.errors = {}
-
-      if (!this.formData.email) {
-        this.errors.email = '이메일을 입력해주세요.'
-      } else if (!this.isValidEmail(this.formData.email)) {
-        this.errors.email = '올바른 이메일 형식이 아닙니다.'
-      }
-
-      if (!this.formData.password) {
-        this.errors.password = '비밀번호를 입력해주세요.'
-      } else if (this.formData.password.length < 6) {
-        this.errors.password = '비밀번호는 6자 이상이어야 합니다.'
-      }
-
-      return Object.keys(this.errors).length === 0
-    },
-    isValidEmail(email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      return emailRegex.test(email)
-    },
-    async handleLogin() {
-      if (!this.validateForm()) return
-
-      this.isLoading = true
-      try {
-        // 실제 로그인 API 호출
-        console.log('로그인 시도:', this.formData)
-
-        // 임시 로그인 처리 (실제 구현 시 API 호출)
-        setTimeout(() => {
-          this.isLoading = false
-          this.$router.push('/')
-        }, 1000)
-      } catch (error) {
-        this.isLoading = false
-        console.error('로그인 오류:', error)
-        // 에러 처리
-      }
-    },
-  },
+  } catch (error) {
+    console.error('비밀번호 찾기 오류:', error)
+    errors.email = '서버 연결에 실패했습니다.'
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 
