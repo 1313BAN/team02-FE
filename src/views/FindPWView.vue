@@ -154,7 +154,7 @@ const handleFindPassword = async () => {
 
 <style scoped>
 .container {
-  min-height: 100vh;
+  min-height: 90vh;
   display: flex;
   flex-direction: column;
   font-family: 'Noto Sans KR', Arial, sans-serif;

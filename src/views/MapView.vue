@@ -8,30 +8,25 @@
           <div class="location-selectors">
             <select v-model="selectedSido" @change="onSidoChange" class="location-select">
               <option value="">시/도 선택</option>
-              <option v-for="sido in sidoList" :key="sido.code" :value="sido.code">
-                {{ sido.name }}
+              <option v-for="sido in sidoList">
+                {{ sido }}
               </option>
             </select>
             <select
-              v-model="selectedSigungu"
-              @change="onSigunguChange"
+              v-model="selectedGungu"
+              @change="onGunguChange"
               class="location-select"
               :disabled="!selectedSido"
             >
               <option value="">구/군 선택</option>
-              <option v-for="sigungu in sigunguList" :key="sigungu.code" :value="sigungu.code">
-                {{ sigungu.name }}
+              <option v-for="gungu in gunguList">
+                {{ gungu }}
               </option>
             </select>
-            <select
-              v-model="selectedEupmyeondong"
-              @change="onEupmyeondongChange"
-              class="location-select"
-              :disabled="!selectedSigungu"
-            >
+            <select v-model="selectedDong" class="location-select" :disabled="!selectedGungu">
               <option value="">읍/면/동 선택</option>
-              <option v-for="emd in eupmyeondongList" :key="emd.code" :value="emd.code">
-                {{ emd.name }}
+              <option v-for="dong in dongList">
+                {{ dong }}
               </option>
             </select>
           </div>
@@ -53,55 +48,6 @@
           <button class="search-btn" @click="handleLocationSearch" :disabled="!canSearch">
             🔍 검색
           </button>
-        </div>
-
-        <div class="search-filters">
-          <select v-model="selectedType" class="filter-select">
-            <option value="">매물종류</option>
-            <option value="apartment">아파트</option>
-            <option value="villa">빌라/연립</option>
-            <option value="oneroom">단독/다가구</option>
-            <option value="officetel">오피스텔</option>
-          </select>
-          <select v-model="selectedDeal" class="filter-select">
-            <option value="">거래종류</option>
-            <option value="sale">매매</option>
-            <option value="rent">전세</option>
-            <option value="monthly">월세</option>
-          </select>
-          <button class="filter-btn" @click="toggleAdvancedFilter">
-            상세조건 {{ showAdvancedFilter ? '▲' : '▼' }}
-          </button>
-        </div>
-      </div>
-
-      <!-- Advanced Filters -->
-      <div v-if="showAdvancedFilter" class="advanced-filters">
-        <div class="filter-row">
-          <div class="filter-group">
-            <label>가격범위 (만원)</label>
-            <div class="price-range">
-              <input type="number" v-model="minPrice" placeholder="최소가격" class="price-input" />
-              <span>~</span>
-              <input type="number" v-model="maxPrice" placeholder="최대가격" class="price-input" />
-            </div>
-          </div>
-          <div class="filter-group">
-            <label>면적 (㎡)</label>
-            <div class="area-range">
-              <input type="number" v-model="minArea" placeholder="최소면적" class="area-input" />
-              <span>~</span>
-              <input type="number" v-model="maxArea" placeholder="최대면적" class="area-input" />
-            </div>
-          </div>
-          <div class="filter-group">
-            <label>층수</label>
-            <div class="floor-range">
-              <input type="number" v-model="minFloor" placeholder="최소층" class="floor-input" />
-              <span>~</span>
-              <input type="number" v-model="maxFloor" placeholder="최대층" class="floor-input" />
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -177,36 +123,11 @@
           <div class="map-placeholder" v-if="!mapInitialized">
             <div class="map-loading">
               <div class="loading-spinner"></div>
-              <p>SGIS 지도를 불러오는 중...</p>
+              <p>지도를 불러오는 중...</p>
             </div>
           </div>
           <!-- SGIS Map will be rendered here -->
           <div id="sgis-map" class="sgis-map-container"></div>
-        </div>
-
-        <!-- Map Controls -->
-        <div class="map-controls">
-          <button class="control-btn" @click="getCurrentLocation" title="내 위치">📍</button>
-          <button class="control-btn" @click="resetMapView" title="전체보기">🌍</button>
-          <button class="control-btn" @click="toggleMapLayer" title="레이어 변경">🗺️</button>
-          <button class="control-btn" @click="showStatistics" title="통계보기">📊</button>
-        </div>
-
-        <!-- Map Legend -->
-        <div class="map-legend" v-if="showMapLegend">
-          <h4>범례</h4>
-          <div class="legend-item">
-            <div class="legend-color" style="background: #ff6b35"></div>
-            <span>매매가 상위</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: #f7931e"></div>
-            <span>매매가 중위</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background: #ffd23f"></div>
-            <span>매매가 하위</span>
-          </div>
         </div>
       </div>
     </div>
@@ -215,34 +136,31 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import api from '@/api/api'
 
 // Location data
 const selectedSido = ref('')
-const selectedSigungu = ref('')
-const selectedEupmyeondong = ref('')
+const selectedGungu = ref('')
+const selectedDong = ref('')
 const selectedYear = ref('')
 const selectedMonth = ref('')
 
 // Location lists
-const sidoList = await fetch('http://70.12.60.55:8080/map/dongcode/sido', {
-  method: 'GET',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-})
-
-const sigunguList = ref([])
-const eupmyeondongList = ref([])
+const sidoList = ref([])
+const gunguList = ref([])
+const dongList = ref([])
 
 // Date options
 const currentYear = new Date().getFullYear()
 const availableYears = ref(Array.from({ length: 10 }, (_, i) => currentYear - i))
 const availableMonths = ref(Array.from({ length: 12 }, (_, i) => i + 1))
 
+const markers = []
+const bounds = []
+
 // Filter states
 const selectedType = ref('')
 const selectedDeal = ref('')
-const showAdvancedFilter = ref(false)
 const minPrice = ref('')
 const maxPrice = ref('')
 const minArea = ref('')
@@ -255,7 +173,6 @@ const sortBy = ref('latest')
 const selectedProperty = ref(null)
 const isLoading = ref(false)
 const mapInitialized = ref(false)
-const showMapLegend = ref(true)
 const sgisMapContainer = ref(null)
 const propertyList = ref(null)
 const currentSearchInfo = ref(null)
@@ -265,7 +182,13 @@ const properties = ref([])
 
 // Computed properties
 const canSearch = computed(() => {
-  return selectedSido.value && selectedSigungu.value
+  return (
+    selectedSido.value &&
+    selectedGungu.value &&
+    selectedDong.value &&
+    selectedYear.value &&
+    selectedMonth.value
+  )
 })
 
 const filteredProperties = computed(() => {
@@ -322,53 +245,72 @@ const filteredProperties = computed(() => {
   return filtered
 })
 
-// Methods
+// 시도 선택 감지
 const onSidoChange = async () => {
-  selectedSigungu.value = ''
-  selectedEupmyeondong.value = ''
-  sigunguList.value = []
-  eupmyeondongList.value = []
+  selectedGungu.value = ''
+  selectedDong.value = ''
+  gunguList.value = []
+  dongList.value = []
 
   if (selectedSido.value) {
-    await fetchSigunguList(selectedSido.value)
+    await fetchGunguList(selectedSido.value)
   }
 }
 
-const onSigunguChange = async () => {
-  selectedEupmyeondong.value = ''
-  eupmyeondongList.value = []
+// 구군 선택 감지
+const onGunguChange = async () => {
+  selectedDong.value = ''
+  dongList.value = []
 
-  if (selectedSigungu.value) {
-    await fetchEupmyeondongList(selectedSido.value, selectedSigungu.value)
+  if (selectedGungu.value) {
+    await fetchDongList(selectedSido.value, selectedGungu.value)
   }
 }
 
-const onEupmyeondongChange = () => {
-  // Optional: Auto search when emd selected
-  if (selectedEupmyeondong.value) {
-    handleLocationSearch()
-  }
+// 시/도 목록 로드
+const fetchSidoList = async () => {
+  const response = await api.get('/map/dongcode/sido')
+  sidoList.value = response.data.data
 }
 
-const fetchSigunguList = async (sidoCode) => {
+// 구군 목록 로드
+const fetchGunguList = async (sidoName) => {
   try {
-    const response = await fetch(`/api/location/sigungu?sido=${sidoCode}`)
-    const data = await response.json()
-    sigunguList.value = data.sigunguList || []
+    const response = await api.get(`/map/dongcode/gugun?sidoName=${sidoName}`)
+    gunguList.value = response.data.data
   } catch (error) {
     console.error('Failed to fetch sigungu list:', error)
   }
 }
 
-const fetchEupmyeondongList = async (sidoCode, sigunguCode) => {
+// 읍면동 목록 로드
+const fetchDongList = async (sidoName, gunguName) => {
   try {
-    const response = await fetch(
-      `/api/location/eupmyeondong?sido=${sidoCode}&sigungu=${sigunguCode}`,
-    )
-    const data = await response.json()
-    eupmyeondongList.value = data.eupmyeondongList || []
+    const response = await api.get(`/map/dongcode/dong?sidoName=${sidoName}&gugunName=${gunguName}`)
+    dongList.value = response.data.data
   } catch (error) {
     console.error('Failed to fetch eupmyeondong list:', error)
+  }
+}
+
+// 지도 초기화
+const initializeSgisMap = async () => {
+  try {
+    // Create SGIS Map instance
+    window.sgisMap = new window.sop.Map('sgis-map')
+
+    updateSgisMap([
+      {
+        address: '서울특별시 강남구 테헤란로 212',
+        utmk: await api.get('/map/coords?address=서울특별시 강남구 테헤란로 212'),
+        label: '멀티캠퍼스',
+      },
+    ])
+
+    mapInitialized.value = true
+    console.log('SGIS Map initialized successfully')
+  } catch (error) {
+    console.error('Failed to initialize SGIS map:', error)
   }
 }
 
@@ -379,8 +321,8 @@ const handleLocationSearch = async () => {
   try {
     const searchParams = {
       sido: selectedSido.value,
-      sigungu: selectedSigungu.value,
-      eupmyeondong: selectedEupmyeondong.value,
+      sigungu: selectedGungu.value,
+      dong: selectedDong.value,
       year: selectedYear.value,
       month: selectedMonth.value,
       type: selectedType.value,
@@ -413,9 +355,8 @@ const handleLocationSearch = async () => {
 
 const updateSearchInfo = () => {
   const sidoName = sidoList.value.find((s) => s.code === selectedSido.value)?.name || ''
-  const sigunguName = sigunguList.value.find((s) => s.code === selectedSigungu.value)?.name || ''
-  const emdName =
-    eupmyeondongList.value.find((e) => e.code === selectedEupmyeondong.value)?.name || ''
+  const sigunguName = gunguList.value.find((s) => s.code === selectedGungu.value)?.name || ''
+  const emdName = dongList.value.find((e) => e.code === selectedDong.value)?.name || ''
 
   let location = sidoName
   if (sigunguName) location += ` ${sigunguName}`
@@ -435,10 +376,6 @@ const updateSearchInfo = () => {
   }
 }
 
-const toggleAdvancedFilter = () => {
-  showAdvancedFilter.value = !showAdvancedFilter.value
-}
-
 const selectProperty = (property) => {
   selectedProperty.value = property
   // Center SGIS map on selected property
@@ -451,39 +388,6 @@ const centerSgisMapOnProperty = (property) => {
     window.sgisMap.setCenter(property.lat, property.lng)
     window.sgisMap.setZoom(16)
   }
-}
-
-const getCurrentLocation = () => {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition((position) => {
-      const lat = position.coords.latitude
-      const lng = position.coords.longitude
-
-      if (window.sgisMap) {
-        window.sgisMap.setCenter(lat, lng)
-        window.sgisMap.setZoom(15)
-      }
-    })
-  }
-}
-
-const resetMapView = () => {
-  if (window.sgisMap && currentSearchInfo.value) {
-    // Reset map to show current search area
-    window.sgisMap.fitBounds()
-  }
-}
-
-const toggleMapLayer = () => {
-  // Toggle between different SGIS map layers
-  if (window.sgisMap) {
-    window.sgisMap.toggleLayer()
-  }
-}
-
-const showStatistics = () => {
-  // Show area statistics overlay
-  showMapLegend.value = !showMapLegend.value
 }
 
 const formatPrice = (price, dealType, deposit = null) => {
@@ -507,71 +411,49 @@ const formatPrice = (price, dealType, deposit = null) => {
   }
 }
 
-const initializeSgisMap = async () => {
+const updateSgisMap = (infos) => {
+  resetMarker()
   try {
-    // Initialize SGIS Map API
-    const response = await fetch(
-      'https://sgisapi.kostat.go.kr/OpenAPI3/auth/javascriptAuth?consumer_key=1cf2dad894ad48d79456',
-    )
-    const config = await response.json()
+    for (let i = 0; i < infos.length; i++) {
+      const info = infos[i]
+      const myIcon = sop.icon({
+        iconUrl: '/img/marker.png',
+        iconSize: [32, 32],
+        iconAnchor: [15, 0],
+        shadowAnchor: [5, 0],
+        popupAnchor: [0, -75],
+      })
+      const marker = sop.marker([info.utmk.data.x, info.utmk.data.y], { icon: myIcon }) //마커 생성시 myIcon 옵션값이용 마커 생성
 
-    // Load SGIS Map API script
-    await loadSgisMapAPI(config.apiKey)
-
-    // Create SGIS Map instance
-    window.sgisMap = new window.SGIS.Map('sgis-map', {
-      center: [37.5665, 127.0074], // Seoul
-      zoom: 11,
-      maxZoom: 18,
-      minZoom: 6,
-    })
-
-    mapInitialized.value = true
-    console.log('SGIS Map initialized successfully')
-  } catch (error) {
-    console.error('Failed to initialize SGIS map:', error)
-  }
-}
-
-const loadSgisMapAPI = async (apiKey) => {
-  return new Promise((resolve, reject) => {
-    if (window.SGIS) {
-      resolve()
-      return
+      marker.addTo(window.sgisMap).bindInfoWindow(info.label)
+      markers.push(marker)
+      bounds.push([info.utmk.data.x, info.utmk.data.y])
     }
-
-    const script = document.createElement('script')
-    script.src = `https://sgisapi.kostat.go.kr/OpenAPI3/js/sgisapi.js?key=${apiKey}`
-    script.onload = resolve
-    script.onerror = reject
-    document.head.appendChild(script)
-  })
+    // 경계를 기준으로 map을 중앙에 위치하도록 함
+    if (bounds.length > 1) {
+      window.sgisMap.setView(
+        window.sgisMap._getBoundsCenterZoom(bounds).center,
+        window.sgisMap._getBoundsCenterZoom(bounds).zoom,
+      )
+    } else {
+      window.sgisMap.setView(window.sgisMap._getBoundsCenterZoom(bounds).center, 9)
+    }
+  } catch (e) {
+    console.log(e)
+  }
 }
 
-const updateSgisMap = async (searchParams) => {
-  if (!window.sgisMap) return
-
-  try {
-    // Update map with search results and statistical overlays
-    const response = await fetch('/api/sgis/updateMap', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(searchParams),
-    })
-
-    const mapData = await response.json()
-
-    // Update map layers with transaction density, price statistics, etc.
-    window.sgisMap.updateLayers(mapData)
-  } catch (error) {
-    console.error('Failed to update SGIS map:', error)
-  }
+// 마커와 경계 초기화
+const resetMarker = () => {
+  markers.forEach((item) => item.remove())
+  bounds.length = 0
 }
 
 // Lifecycle
 onMounted(() => {
+  // Load sido list on component mount
+  fetchSidoList()
+
   nextTick(() => {
     initializeSgisMap()
   })
