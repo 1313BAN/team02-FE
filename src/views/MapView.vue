@@ -45,9 +45,7 @@
             </select>
           </div>
 
-          <button class="search-btn" @click="handleLocationSearch" :disabled="!canSearch">
-            🔍 검색
-          </button>
+          <button class="search-btn" @click="locationSearch" :disabled="!canSearch">🔍 검색</button>
         </div>
       </div>
     </div>
@@ -57,14 +55,6 @@
       <div class="left-panel">
         <div class="list-header">
           <h3>매물 목록 ({{ properties.length }}건)</h3>
-          <div class="sort-options">
-            <select v-model="sortBy" class="sort-select">
-              <option value="latest">최신순</option>
-              <option value="price-low">가격낮은순</option>
-              <option value="price-high">가격높은순</option>
-              <option value="area-large">면적넓은순</option>
-            </select>
-          </div>
         </div>
 
         <div class="search-info" v-if="currentSearchInfo">
@@ -72,6 +62,17 @@
           <div class="search-period" v-if="currentSearchInfo.period">
             📅 {{ currentSearchInfo.period }}
           </div>
+        </div>
+
+        <div v-if="!properties.length && !isLoading" class="no-results">
+          <div class="no-results-icon">🏠</div>
+          <p>검색된 매물이 없습니다.</p>
+          <p class="no-results-sub">다른 조건으로 검색해보세요.</p>
+        </div>
+
+        <div v-if="isLoading" class="loading">
+          <div class="loading-spinner"></div>
+          <p>매물을 불러오는 중...</p>
         </div>
 
         <div class="property-list" ref="propertyList">
@@ -83,37 +84,53 @@
             @click="selectProperty(property)"
           >
             <div class="property-image">
-              <img :src="property.image || '/placeholder-house.jpg'" :alt="property.title" />
-              <div class="property-badge">{{ property.type }}</div>
+              <img :src="property.image || '/img/apart.png'" :alt="property.title" />
+              <div class="property-badge">아파트</div>
             </div>
             <div class="property-info">
-              <h4 class="property-title">{{ property.title }}</h4>
-              <p class="property-price">
-                {{ formatPrice(property.price, property.dealType, property.deposit) }}
-              </p>
-              <p class="property-details">
-                {{ property.area }}㎡ · {{ property.floor }}층
-                <span v-if="property.rooms"> · {{ property.rooms }}방</span>
-                <span v-if="property.bathrooms"> · {{ property.bathrooms }}욕실</span>
-              </p>
+              <h4 class="property-title">{{ property.label }}</h4>
               <p class="property-location">{{ property.address }}</p>
-              <p class="property-date">거래일: {{ property.dealDate }}</p>
-              <div class="property-tags" v-if="property.tags">
-                <span v-for="tag in property.tags" :key="tag" class="tag">{{ tag }}</span>
-              </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <div v-if="isLoading" class="loading">
-          <div class="loading-spinner"></div>
-          <p>매물을 불러오는 중...</p>
+      <!-- Deal Details Section -->
+      <div class="deal-section" v-if="selectedProperty">
+        <div class="deal-header">
+          <h3>{{ selectedProperty.label }} 거래내역</h3>
+          <div class="deal-count">{{ deals.length }}건</div>
         </div>
 
-        <div v-if="!properties.length && !isLoading" class="no-results">
-          <div class="no-results-icon">🏠</div>
-          <p>검색된 매물이 없습니다.</p>
-          <p class="no-results-sub">다른 조건으로 검색해보세요.</p>
+        <div v-if="isLoadingDeals" class="loading">
+          <div class="loading-spinner"></div>
+          <p>거래내역을 불러오는 중...</p>
+        </div>
+
+        <div v-else-if="!deals.length" class="no-results">
+          <div class="no-results-icon">📊</div>
+          <p>해당 기간 거래내역이 없습니다.</p>
+        </div>
+
+        <div v-else class="deal-list">
+          <div
+            v-for="deal in deals"
+            :key="`${deal.aptSeq}-${deal.dealDate}-${deal.dealAmount}`"
+            class="deal-card"
+          >
+            <div class="deal-info">
+              <div class="deal-main">
+                <span class="deal-type">{{ deal.type }}</span>
+                <span class="deal-price">{{ formatPrice(deal.amount) }}</span>
+              </div>
+              <div class="deal-details">
+                <span class="deal-area">{{ deal.area }}㎡</span>
+                <span class="deal-floor">{{ deal.floor }}층</span>
+                <span class="deal-date">{{ deal.date }}</span>
+              </div>
+              <div class="deal-address">{{ selectedProperty.address }}</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -172,6 +189,7 @@ const sortBy = ref('latest')
 // Map and data states
 const selectedProperty = ref(null)
 const isLoading = ref(false)
+const isLoadingDeals = ref(false)
 const mapInitialized = ref(false)
 const sgisMapContainer = ref(null)
 const propertyList = ref(null)
@@ -179,6 +197,7 @@ const currentSearchInfo = ref(null)
 
 // Sample property data (will be replaced with real estate transaction data)
 const properties = ref([])
+const deals = ref([])
 
 // Computed properties
 const canSearch = computed(() => {
@@ -314,38 +333,48 @@ const initializeSgisMap = async () => {
   }
 }
 
-const handleLocationSearch = async () => {
+const locationSearch = async () => {
   if (!canSearch.value) return
 
+  properties.value = []
   isLoading.value = true
   try {
-    const searchParams = {
-      sido: selectedSido.value,
-      sigungu: selectedGungu.value,
-      dong: selectedDong.value,
-      year: selectedYear.value,
-      month: selectedMonth.value,
-      type: selectedType.value,
-      dealType: selectedDeal.value,
-    }
-
     // Update search info
     updateSearchInfo()
 
     // Call backend API for real estate transaction data
-    const response = await fetch('/api/realestate/search', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(searchParams),
-    })
+    const response = await api.get(
+      '/map/apart' +
+        '?sidoName=' +
+        selectedSido.value +
+        '&gugunName=' +
+        selectedGungu.value +
+        '&dongName=' +
+        selectedDong.value,
+    )
 
-    const data = await response.json()
-    properties.value = data.properties || []
+    const items = response.data.data
+
+    for (const item of items) {
+      const aptSeq = item.aptSeq
+      const roadNm = item.roadNm
+      const roadNmBonbun = item.roadNmBonbun
+      const roadNmBubun = item.roadNmBubun
+      const aptNm = item.aptNm
+      const address = `${selectedSido.value} ${selectedGungu.value} ${roadNm} ${roadNmBonbun}${roadNmBubun != 0 ? '-' + roadNmBubun : ''} ${aptNm}`
+
+      const utmkObject = await api.get('/map/coords?address=' + address)
+
+      properties.value.push({
+        aptSeq: aptSeq,
+        address: address,
+        utmk: utmkObject,
+        label: aptNm,
+      })
+    }
 
     // Update SGIS map with search results
-    await updateSgisMap(searchParams)
+    await updateSgisMap(properties.value)
   } catch (error) {
     console.error('Search failed:', error)
   } finally {
@@ -354,13 +383,13 @@ const handleLocationSearch = async () => {
 }
 
 const updateSearchInfo = () => {
-  const sidoName = sidoList.value.find((s) => s.code === selectedSido.value)?.name || ''
-  const sigunguName = gunguList.value.find((s) => s.code === selectedGungu.value)?.name || ''
-  const emdName = dongList.value.find((e) => e.code === selectedDong.value)?.name || ''
+  const sidoName = selectedSido.value
+  const gunguName = selectedGungu.value
+  const dongName = selectedDong.value
 
   let location = sidoName
-  if (sigunguName) location += ` ${sigunguName}`
-  if (emdName) location += ` ${emdName}`
+  if (gunguName) location += ` ${gunguName}`
+  if (dongName) location += ` ${dongName}`
 
   let period = ''
   if (selectedYear.value) {
@@ -376,39 +405,90 @@ const updateSearchInfo = () => {
   }
 }
 
-const selectProperty = (property) => {
+const selectProperty = async (property) => {
+  // 같은 매물을 다시 클릭하면 선택 해제
+  if (selectedProperty.value?.aptSeq === property.aptSeq) {
+    selectedProperty.value = null
+    deals.value = []
+    return
+  }
+
   selectedProperty.value = property
+  deals.value = [] // 이전 거래 내역 초기화
+
   // Center SGIS map on selected property
   centerSgisMapOnProperty(property)
+
+  // Load deals for selected property
+  await fetchDeals(property.aptSeq)
 }
 
 const centerSgisMapOnProperty = (property) => {
-  // SGIS map centering logic
-  if (window.sgisMap && property.lat && property.lng) {
-    window.sgisMap.setCenter(property.lat, property.lng)
-    window.sgisMap.setZoom(16)
+  if (window.sgisMap && property.utmk && property.utmk.data) {
+    try {
+      const x = property.utmk.data.x
+      const y = property.utmk.data.y
+
+      // 다양한 SGIS API 메서드 지원
+      if (window.sgisMap.setView) {
+        window.sgisMap.setView([x, y], 16)
+      } else if (window.sgisMap.setCenter) {
+        window.sgisMap.setCenter([x, y])
+        window.sgisMap.setZoom(16)
+      }
+    } catch (error) {
+      console.error('Failed to center map:', error)
+    }
   }
 }
 
-const formatPrice = (price, dealType, deposit = null) => {
-  const formatMoney = (amount) => {
-    if (amount >= 100000000) {
-      return `${(amount / 100000000).toFixed(1)}억`
-    } else if (amount >= 10000) {
-      return `${Math.floor(amount / 10000)}만`
+const fetchDeals = async (aptSeq) => {
+  if (!aptSeq) return
+
+  isLoadingDeals.value = true
+  try {
+    const response = await api.get(`/map/apart/${aptSeq}/detail`)
+    const items = response.data.data.apartDeals
+
+    for (const item of items) {
+      deals.value.push({
+        type: '매매',
+        amount: item.dealAmount,
+        area: item.excluUseAr,
+        floor: item.floor,
+        date: item.dealYear + '.' + item.dealMonth + '.' + item.dealDay,
+      })
+    }
+  } catch (error) {
+    console.error('Failed to fetch deals:', error)
+    deals.value = []
+  } finally {
+    isLoadingDeals.value = false
+  }
+}
+
+const formatPrice = (price) => {
+  const cleanAmount = parseInt(price.replace(/,/g, '').trim(), 10)
+
+  const eok = Math.floor(cleanAmount / 10000) // 억
+  const man = cleanAmount % 10000 // 만
+
+  let result = ''
+
+  if (eok > 0) {
+    result += `${eok}억`
+  }
+
+  if (man > 0) {
+    if (man % 1000 === 0) {
+      result += ` ${man / 1000}천만`
     } else {
-      return `${amount}만`
+      result += ` ${man}만`
     }
   }
 
-  if (dealType === 'monthly') {
-    const depositStr = deposit ? `(${formatMoney(deposit)})` : ''
-    return `월세 ${depositStr} ${formatMoney(price)}`
-  } else if (dealType === 'rent') {
-    return `전세 ${formatMoney(price)}`
-  } else {
-    return `매매 ${formatMoney(price)}`
-  }
+  result = result.trim() + ' 원'
+  return result
 }
 
 const updateSgisMap = (infos) => {
@@ -730,22 +810,23 @@ watch(
 }
 
 .property-image {
-  width: 120px;
-  height: 120px;
+  width: 110px;
+  height: 110px;
+  left: 10px;
+  top: 10px;
   position: relative;
   overflow: hidden;
 }
 
 .property-image img {
-  width: 100%;
-  height: 100%;
+  width: 85%;
+  height: 85%;
   object-fit: cover;
 }
 
 .property-badge {
   position: absolute;
-  top: 8px;
-  left: 8px;
+  bottom: 20px;
   background: #ff6b35;
   color: white;
   padding: 0.25rem 0.5rem;
@@ -760,7 +841,7 @@ watch(
 }
 
 .property-title {
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: bold;
   color: #333;
   margin: 0 0 0.5rem 0;
@@ -801,7 +882,119 @@ watch(
   font-size: 0.7rem;
   font-weight: bold;
 }
+/* Deal Section Styles */
 
+.deal-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.1) 0%, rgba(255, 210, 63, 0.1) 100%);
+}
+
+.deal-header h3 {
+  color: #ff6b35;
+  font-weight: bold;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.deal-count {
+  background: #ff6b35;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.deal-section {
+  height: 100%;
+  overflow: hidden;
+}
+
+.deal-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  height: 94%; /* flex item이 정확한 높이를 가지도록 */
+}
+
+.deal-card {
+  background: white;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  margin-bottom: 0.75rem;
+  padding: 1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.deal-card:hover {
+  border-color: #ff6b35;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.1);
+}
+
+.deal-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.deal-type {
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.deal-price {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #ff6b35;
+}
+
+.deal-details {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.deal-area,
+.deal-floor,
+.deal-date {
+  display: flex;
+  align-items: center;
+}
+
+.deal-area::before {
+  content: '📐';
+  margin-right: 0.25rem;
+}
+
+.deal-floor::before {
+  content: '🏢';
+  margin-right: 0.25rem;
+}
+
+.deal-date::before {
+  content: '📅';
+  margin-right: 0.25rem;
+}
+
+.deal-address {
+  font-size: 0.8rem;
+  color: #999;
+  border-top: 1px solid #f5f5f5;
+  padding-top: 0.5rem;
+}
 /* Right Panel */
 .right-panel {
   flex: 1;
