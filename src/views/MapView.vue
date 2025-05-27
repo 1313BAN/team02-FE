@@ -3,7 +3,25 @@
     <!-- Search Bar -->
     <div class="search-section">
       <div class="search-bar">
-        <div class="location-search-group">
+        <!-- Search Mode Toggle -->
+        <div class="search-mode-toggle">
+          <button
+            class="toggle-btn"
+            :class="{ active: !isAiSearchMode }"
+            @click="toggleSearchMode(false)"
+          >
+            🔍 일반 검색
+          </button>
+          <button
+            class="toggle-btn"
+            :class="{ active: isAiSearchMode }"
+            @click="toggleSearchMode(true)"
+          >
+            🤖 AI 추천 검색
+          </button>
+        </div>
+
+        <div v-if="!isAiSearchMode" class="location-search-group">
           <!-- 계층적 지역 검색 -->
           <div class="location-selectors">
             <select v-model="selectedSido" @change="onSidoChange" class="location-select">
@@ -46,6 +64,128 @@
           </div>
 
           <button class="search-btn" @click="locationSearch" :disabled="!canSearch">🔍 검색</button>
+        </div>
+
+        <!-- AI 검색 UI -->
+        <div v-if="isAiSearchMode" class="ai-search-group">
+          <div class="ai-search-row">
+            <!-- 가격 범위 -->
+            <div class="ai-input-group">
+              <label class="ai-label">예산 (만원)</label>
+              <div class="price-range-group">
+                <input
+                  type="number"
+                  v-model="aiSearchData.minBudget"
+                  placeholder="최소"
+                  class="ai-input small"
+                />
+                <span class="range-divider">~</span>
+                <input
+                  type="number"
+                  v-model="aiSearchData.maxBudget"
+                  placeholder="최대"
+                  class="ai-input small"
+                />
+              </div>
+            </div>
+
+            <!-- 집 타입 -->
+            <div class="ai-input-group">
+              <label class="ai-label">집 타입</label>
+              <select v-model="aiSearchData.houseType" class="ai-input">
+                <option value="">선택하세요</option>
+                <option value="원룸">원룸</option>
+                <option value="투룸">투룸</option>
+                <option value="쓰리룸">쓰리룸</option>
+                <option value="오피스텔">오피스텔</option>
+                <option value="아파트">아파트</option>
+              </select>
+            </div>
+
+            <!-- 나이 -->
+            <div class="ai-input-group">
+              <label class="ai-label">나이</label>
+              <input
+                type="number"
+                v-model="aiSearchData.age"
+                placeholder="나이를 입력하세요"
+                class="ai-input"
+              />
+            </div>
+          </div>
+
+          <div class="ai-search-row">
+            <!-- 직업 -->
+            <div class="ai-input-group">
+              <label class="ai-label">직업</label>
+              <input
+                type="text"
+                v-model="aiSearchData.job"
+                placeholder="예: 개발자, 디자이너"
+                class="ai-input"
+              />
+            </div>
+
+            <!-- 교통수단 -->
+            <div class="ai-input-group">
+              <label class="ai-label">주 교통수단</label>
+              <select v-model="aiSearchData.transport" class="ai-input">
+                <option value="">선택하세요</option>
+                <option value="지하철">지하철</option>
+                <option value="버스">버스</option>
+                <option value="자차">자차</option>
+                <option value="도보">도보</option>
+                <option value="자전거">자전거</option>
+              </select>
+            </div>
+
+            <!-- 가족 구성원 -->
+            <div class="ai-input-group">
+              <label class="ai-label">가족 구성</label>
+              <select v-model="aiSearchData.familySize" class="ai-input">
+                <option value="">선택하세요</option>
+                <option value="1인가구">1인가구</option>
+                <option value="2인가구">2인가구</option>
+                <option value="3인가구">3인가구</option>
+                <option value="4인 이상">4인 이상</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="ai-search-row">
+            <!-- 생활습관 -->
+            <div class="ai-input-group full-width">
+              <label class="ai-label">생활습관</label>
+              <textarea
+                v-model="aiSearchData.lifestyle"
+                placeholder="예: 집순이 성격, 카페에서 작업하는 것을 좋아함"
+                class="ai-textarea"
+                rows="2"
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="ai-search-row">
+            <!-- 원하는 동네 분위기 -->
+            <div class="ai-input-group full-width">
+              <label class="ai-label">원하는 동네 분위기</label>
+              <textarea
+                v-model="aiSearchData.neighborhoodMood"
+                placeholder="예: 한적한 분위기, 젊은 사람들이 많은 활기찬 동네"
+                class="ai-textarea"
+                rows="2"
+              ></textarea>
+            </div>
+          </div>
+
+          <button
+            class="ai-search-btn"
+            @click="handleAiSearch"
+            :disabled="!canAiSearch || isLoading"
+          >
+            <span v-if="isLoading" class="loading-spinner"></span>
+            {{ isLoading ? 'AI 분석 중...' : '🤖 AI 추천 받기' }}
+          </button>
         </div>
       </div>
     </div>
@@ -152,7 +292,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
 import api from '@/api/api'
 
 // Location data
@@ -195,6 +335,20 @@ const sgisMapContainer = ref(null)
 const propertyList = ref(null)
 const currentSearchInfo = ref(null)
 
+// AI Search states - 새로 추가
+const isAiSearchMode = ref(false)
+const aiSearchData = reactive({
+  minBudget: '',
+  maxBudget: '',
+  houseType: '',
+  age: '',
+  job: '',
+  lifestyle: '',
+  transport: '',
+  familySize: '',
+  neighborhoodMood: '',
+})
+
 // Sample property data (will be replaced with real estate transaction data)
 const properties = ref([])
 const deals = ref([])
@@ -207,6 +361,20 @@ const canSearch = computed(() => {
     selectedDong.value &&
     selectedYear.value &&
     selectedMonth.value
+  )
+})
+
+const canAiSearch = computed(() => {
+  return (
+    aiSearchData.minBudget &&
+    aiSearchData.maxBudget &&
+    aiSearchData.houseType &&
+    aiSearchData.age &&
+    aiSearchData.job &&
+    aiSearchData.lifestyle &&
+    aiSearchData.transport &&
+    aiSearchData.familySize &&
+    aiSearchData.neighborhoodMood
   )
 })
 
@@ -550,6 +718,79 @@ const resetMarker = () => {
   bounds.length = 0
 }
 
+// AI Search Methods - 새로 추가
+const toggleSearchMode = (isAiMode) => {
+  isAiSearchMode.value = isAiMode
+}
+
+const handleAiSearch = async () => {
+  if (!canAiSearch.value) return
+
+  isLoading.value = true
+  properties.value = []
+
+  try {
+    // AI 검색 정보 업데이트
+    updateAiSearchInfo()
+
+    // AI 검색 API 호출
+    const response = await api.post('/map/ai-search', {
+      minBudget: parseInt(aiSearchData.minBudget),
+      maxBudget: parseInt(aiSearchData.maxBudget),
+      houseType: aiSearchData.houseType,
+      age: parseInt(aiSearchData.age),
+      job: aiSearchData.job,
+      lifestyle: aiSearchData.lifestyle,
+      transport: aiSearchData.transport,
+      familySize: aiSearchData.familySize,
+      neighborhoodMood: aiSearchData.neighborhoodMood,
+    })
+
+    const aiRecommendations = response.data.data
+
+    // AI 추천 결과를 지도에 표시할 형태로 변환
+    for (const recommendation of aiRecommendations) {
+      const address = `${recommendation.sido} ${recommendation.gungu} ${recommendation.dong}`
+
+      // 좌표 정보 가져오기 (필요시)
+      const utmkObject = await api.get(`/map/coords?address=${address}`)
+
+      properties.value.push({
+        aptSeq: recommendation.id || Math.random(), // 임시 ID
+        address: address,
+        utmk: utmkObject,
+        label: recommendation.areaName || recommendation.dong,
+        aiScore: recommendation.score, // AI 점수
+        aiReason: recommendation.reason, // AI 추천 이유
+      })
+    }
+
+    // 지도 업데이트
+    if (properties.value.length > 0) {
+      await updateSgisMap(properties.value)
+    }
+  } catch (error) {
+    console.error('AI Search failed:', error)
+    showAlertMessage('AI 검색에 실패했습니다. 다시 시도해주세요.', 'error')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const updateAiSearchInfo = () => {
+  let searchDesc = `AI 추천: ${aiSearchData.houseType}`
+  if (aiSearchData.minBudget && aiSearchData.maxBudget) {
+    searchDesc += ` (${aiSearchData.minBudget}만원~${aiSearchData.maxBudget}만원)`
+  }
+
+  let period = `${aiSearchData.age}세 ${aiSearchData.job}`
+
+  currentSearchInfo.value = {
+    location: searchDesc,
+    period: period,
+  }
+}
+
 // Lifecycle
 onMounted(() => {
   // Load sido list on component mount
@@ -574,7 +815,6 @@ watch(
 .map-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
   background-color: #f8f9fa;
   font-family: 'Noto Sans KR', Arial, sans-serif;
 }
@@ -589,6 +829,157 @@ watch(
 .search-bar {
   max-width: 1200px;
   margin: 0 auto;
+}
+
+/* Search Mode Toggle - 새로 추가 */
+.search-mode-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  justify-content: center;
+}
+
+.toggle-btn {
+  padding: 0.75rem 1.5rem;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+  color: white;
+}
+
+.toggle-btn.active {
+  background: rgba(255, 255, 255, 0.95);
+  color: #ff6b35;
+  border-color: white;
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+}
+
+/* AI Search Styles - 새로 추가 */
+.ai-search-group {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.ai-search-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.ai-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.ai-input-group.full-width {
+  flex: 100%;
+}
+
+.ai-label {
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.ai-input {
+  padding: 0.75rem 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.ai-input:focus {
+  border-color: white;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+  background: white;
+}
+
+.ai-input.small {
+  flex: 1;
+  min-width: 80px;
+}
+
+.ai-textarea {
+  padding: 0.75rem 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  outline: none;
+  transition: all 0.3s ease;
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+}
+
+.ai-textarea:focus {
+  border-color: white;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+  background: white;
+}
+
+.price-range-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.range-divider {
+  color: white;
+  font-weight: bold;
+  font-size: 1.1rem;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.ai-search-btn {
+  width: 100%;
+  padding: 1rem 2rem;
+  background: linear-gradient(135deg, #ffd23f 0%, #fff 50%, #ffd23f 100%);
+  border: 3px solid white;
+  border-radius: 20px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #ff6b35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.ai-search-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ai-search-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
 }
 
 .location-search-group {
@@ -747,13 +1138,13 @@ watch(
 /* Main Content */
 .main-content {
   display: flex;
-  flex: 1;
   height: calc(100vh - 220px);
 }
 
 /* Left Panel */
 .left-panel {
   width: 400px;
+  height: 100%;
   background: white;
   border-right: 1px solid #eee;
   display: flex;
