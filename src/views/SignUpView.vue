@@ -286,7 +286,7 @@ watch(
   display: flex;
   flex-direction: column;
   font-family: 'Noto Sans KR', Arial, sans-serif;
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 50%, #ffd23f 100%);
+  background: linear-gradient(135deg, #ffa069 0%, #fab17d 50%, #ffda62 100%);
 }
 
 /* Main Content */

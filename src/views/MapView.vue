@@ -877,7 +877,7 @@ onMounted(() => {
 
 /* Search Section */
 .search-section {
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 50%, #ffd23f 100%);
+  background: linear-gradient(135deg, #ffa069 0%, #fab17d 50%, #ffda62 100%);
   padding: 1.5rem 2rem;
   box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
 }

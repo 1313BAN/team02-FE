@@ -70,9 +70,7 @@ const logout = () => {
   color: #ff6b35;
   text-decoration: none;
   transition: transform 0.3s ease;
-  text-shadow:
-    2px 2px 0px #ffd23f,
-    -1px -1px 0px #f7931e;
+  text-shadow: -1px -1px 0px #f7931e;
 }
 
 .logo:hover {
@@ -99,7 +97,7 @@ const logout = () => {
 }
 
 .nav-btn.primary {
-  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  background: linear-gradient(135deg, #ffa069 0%, #f7931e 100%);
   color: white;
   box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
   border: 2px solid #ffd23f;
@@ -113,12 +111,12 @@ const logout = () => {
 
 .nav-btn.secondary {
   background: transparent;
-  color: #ff6b35;
+  color: #ffa069;
   border: 2px solid #ff6b35;
 }
 
 .nav-btn.secondary:hover {
-  background: #ff6b35;
+  background: #ffa069;
   color: white;
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
@@ -132,11 +130,11 @@ const logout = () => {
 
 .nav-btn.ghost:hover {
   background: rgba(255, 107, 53, 0.1);
-  color: #ff6b35;
+  color: #ffa069;
 }
 
 .nav-btn.router-link-active {
-  background: #ff6b35;
+  background: #ffa069;
   color: white;
   border: 2px solid #ffd23f;
 }
