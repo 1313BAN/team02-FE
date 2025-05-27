@@ -76,11 +76,11 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/api'
-
-// const api = localAxios
+import { useAuthStore } from '@/stores/authStore'
 
 // Composables
 const router = useRouter()
+const authStore = useAuthStore()
 
 // Reactive state
 const formData = reactive({
@@ -125,14 +125,11 @@ const handleLogin = async () => {
     // 실제 로그인 API 호출
     const response = await api.post('/auth/login', formData)
 
-    console.log(response)
-    console.log(response.headers.authorization)
-
     if (response.status == 200) {
       // 로그인 성공
-      sessionStorage.setItem('accessToken', response.headers.authorization)
+      authStore.login(response.headers.authorization, response.data.data.nickname)
       if (rememberMe.value) {
-        sessionStorage.setItem('userEmail', formData.email)
+        sessionStorage.setItem('userEmail', response.data.email)
       }
       router.push('/')
     }

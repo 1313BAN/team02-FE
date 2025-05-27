@@ -3,14 +3,22 @@
   <header class="header">
     <nav class="nav-container">
       <RouterLink to="/" class="logo">맞동산</RouterLink>
-
+      <div class="welcome-message" v-if="authStore.isLoggedIn">
+        <span class="welcome-text">{{ nickname || '사용자' }}님 환영합니다! 👋</span>
+      </div>
       <ul class="nav-menu">
         <li>
           <RouterLink to="/map" class="nav-btn secondary">지도</RouterLink>
         </li>
-        <li>
-          <RouterLink to="/loginForm" class="nav-btn primary">로그인/회원가입</RouterLink>
-        </li>
+        <template v-if="authStore.isLoggedIn">
+          <li><RouterLink to="/detail" class="nav-btn primary">내 정보</RouterLink></li>
+          <li>
+            <button class="nav-btn primary" @click="logout">로그아웃</button>
+          </li>
+        </template>
+        <template v-else>
+          <li><RouterLink to="/loginForm" class="nav-btn primary">로그인/회원가입</RouterLink></li>
+        </template>
       </ul>
     </nav>
   </header>
@@ -18,6 +26,14 @@
 
 <script setup>
 import { RouterLink } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
+
+const authStore = useAuthStore()
+const nickname = sessionStorage.getItem('nickname')
+
+const logout = () => {
+  authStore.logout()
+}
 </script>
 
 <style scoped>
@@ -124,5 +140,22 @@ import { RouterLink } from 'vue-router'
   background: #ff6b35;
   color: white;
   border: 2px solid #ffd23f;
+}
+
+.welcome-message {
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.1) 0%, rgba(255, 210, 63, 0.1) 100%);
+  padding: 0.5rem 1rem;
+  border-radius: 15px;
+  border: 2px solid rgba(255, 107, 53, 0.2);
+}
+
+.welcome-text {
+  color: #ff6b35;
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 </style>
