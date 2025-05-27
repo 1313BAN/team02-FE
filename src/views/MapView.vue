@@ -3,8 +3,8 @@
     <!-- Search Bar -->
     <div class="search-section">
       <div class="search-bar">
-        <!-- Search Mode Toggle -->
-        <div class="search-mode-toggle">
+        <!-- Search Mode Toggle - AI 검색 완료시 숨김 -->
+        <div class="search-mode-toggle" v-if="!aiSearchCompleted">
           <button
             class="toggle-btn"
             :class="{ active: !isAiSearchMode }"
@@ -21,7 +21,49 @@
           </button>
         </div>
 
-        <div v-if="!isAiSearchMode" class="location-search-group">
+        <!-- AI 검색 결과 표시 영역 - 새로 추가 -->
+        <div v-if="aiSearchCompleted" class="ai-results-section">
+          <div class="ai-results-header">
+            <h3>🤖 AI 추천 검색 결과</h3>
+            <button class="new-search-btn" @click="resetAiSearch">🔄 새로 검색</button>
+          </div>
+
+          <div class="ai-results-summary">
+            <div class="search-summary-info">
+              <span class="summary-item"
+                >💰 예산: {{ aiSearchData.minBudget }}만원 ~ {{ aiSearchData.maxBudget }}만원</span
+              >
+              <span class="summary-item">🏠 타입: {{ aiSearchData.houseType }}</span>
+              <span class="summary-item">👤 {{ aiSearchData.age }}세 {{ aiSearchData.job }}</span>
+              <span class="summary-item">🚇 {{ aiSearchData.transport }}</span>
+            </div>
+          </div>
+
+          <div class="ai-results-grid">
+            <div
+              v-for="(result, index) in aiSearchResults"
+              :key="index"
+              class="ai-result-card"
+              @click="selectAiResult(result)"
+            >
+              <div class="ai-result-header">
+                <div class="ai-result-rank">{{ index + 1 }}위</div>
+                <div class="ai-result-score">{{ result.score }}점</div>
+              </div>
+              <div class="ai-result-content">
+                <div class="ai-result-title">
+                  {{ result.sido }} {{ result.gungu }} {{ result.dong }}
+                </div>
+                <div class="ai-result-tags">
+                  <span class="ai-tag" v-for="tag in result.tags" :key="tag">{{ tag }}</span>
+                </div>
+                <p class="ai-result-reason">{{ result.reason }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="!isAiSearchMode && !aiSearchCompleted" class="location-search-group">
           <!-- 계층적 지역 검색 -->
           <div class="location-selectors">
             <select v-model="selectedSido" @change="onSidoChange" class="location-select">
@@ -67,7 +109,7 @@
         </div>
 
         <!-- AI 검색 UI -->
-        <div v-if="isAiSearchMode" class="ai-search-group">
+        <div v-if="isAiSearchMode && !aiSearchCompleted" class="ai-search-group">
           <div class="ai-search-row">
             <!-- 가격 범위 -->
             <div class="ai-input-group">
@@ -335,8 +377,10 @@ const sgisMapContainer = ref(null)
 const propertyList = ref(null)
 const currentSearchInfo = ref(null)
 
-// AI Search states - 새로 추가
+// AI Search states - 업데이트
 const isAiSearchMode = ref(false)
+const aiSearchCompleted = ref(false)
+const aiSearchResults = ref([])
 const aiSearchData = reactive({
   minBudget: '',
   maxBudget: '',
@@ -495,15 +539,12 @@ const initializeSgisMap = async () => {
     ])
 
     mapInitialized.value = true
-    console.log('SGIS Map initialized successfully')
   } catch (error) {
     console.error('Failed to initialize SGIS map:', error)
   }
 }
 
 const locationSearch = async () => {
-  if (!canSearch.value) return
-
   properties.value = []
   isLoading.value = true
   try {
@@ -685,6 +726,7 @@ const updateSgisMap = (infos) => {
   try {
     for (let i = 0; i < infos.length; i++) {
       const info = infos[i]
+      if (!info.utmk.data.x || !info.utmk.data.y) continue
       const myIcon = sop.icon({
         iconUrl: '/img/marker.png',
         iconSize: [32, 32],
@@ -718,63 +760,84 @@ const resetMarker = () => {
   bounds.length = 0
 }
 
-// AI Search Methods - 새로 추가
+// AI Search Methods - 업데이트
 const toggleSearchMode = (isAiMode) => {
   isAiSearchMode.value = isAiMode
+  // 검색 모드 변경 시 AI 검색 완료 상태 초기화
+  if (!isAiMode) {
+    aiSearchCompleted.value = false
+    aiSearchResults.value = []
+  }
 }
 
 const handleAiSearch = async () => {
-  if (!canAiSearch.value) return
-
   isLoading.value = true
-  properties.value = []
 
   try {
-    // AI 검색 정보 업데이트
-    updateAiSearchInfo()
+    console.log(aiSearchData)
+    // AI 검색 API 호출 (실제 API 대신 샘플 데이터로 시뮬레이션)
+    const response = await api.post('/recommendation/recommend', aiSearchData)
 
-    // AI 검색 API 호출
-    const response = await api.post('/map/ai-search', {
-      minBudget: parseInt(aiSearchData.minBudget),
-      maxBudget: parseInt(aiSearchData.maxBudget),
-      houseType: aiSearchData.houseType,
-      age: parseInt(aiSearchData.age),
-      job: aiSearchData.job,
-      lifestyle: aiSearchData.lifestyle,
-      transport: aiSearchData.transport,
-      familySize: aiSearchData.familySize,
-      neighborhoodMood: aiSearchData.neighborhoodMood,
-    })
+    console.log(response.data.data.recommendations)
+    // 샘플 AI 검색 결과 (실제 API 응답으로 교체)
+    const sampleResults = [
+      {
+        id: 1,
+        sido: '서울특별시',
+        gungu: '강남구',
+        dong: '역삼동',
+        score: 95,
+        reason: `${aiSearchData.job} 직종에 최적화된 업무 환경과 ${aiSearchData.transport} 접근성이 뛰어남. ${aiSearchData.neighborhoodMood}에 부합하는 분위기.`,
+        tags: ['교통편리', '직장접근성', '카페많음'],
+      },
+      {
+        id: 2,
+        sido: '서울특별시',
+        gungu: '서초구',
+        dong: '서초동',
+        score: 88,
+        reason: `예산 범위 내에서 ${aiSearchData.houseType} 매물이 풍부하고, ${aiSearchData.lifestyle}에 적합한 환경.`,
+        tags: ['예산적합', '생활편의', '조용함'],
+      },
+      {
+        id: 3,
+        sido: '서울특별시',
+        gungu: '송파구',
+        dong: '잠실동',
+        score: 82,
+        reason: `${aiSearchData.familySize}에 적합한 생활 인프라와 ${aiSearchData.age}대가 선호하는 문화시설 밀집.`,
+        tags: ['가족친화', '문화시설', '교육환경'],
+      },
+    ]
 
-    const aiRecommendations = response.data.data
-
-    // AI 추천 결과를 지도에 표시할 형태로 변환
-    for (const recommendation of aiRecommendations) {
-      const address = `${recommendation.sido} ${recommendation.gungu} ${recommendation.dong}`
-
-      // 좌표 정보 가져오기 (필요시)
-      const utmkObject = await api.get(`/map/coords?address=${address}`)
-
-      properties.value.push({
-        aptSeq: recommendation.id || Math.random(), // 임시 ID
-        address: address,
-        utmk: utmkObject,
-        label: recommendation.areaName || recommendation.dong,
-        aiScore: recommendation.score, // AI 점수
-        aiReason: recommendation.reason, // AI 추천 이유
-      })
-    }
-
-    // 지도 업데이트
-    if (properties.value.length > 0) {
-      await updateSgisMap(properties.value)
-    }
+    // 검색 결과 저장
+    aiSearchResults.value = response.data.data.recommendations
+    aiSearchCompleted.value = true // 검색 완료 상태로 변경
   } catch (error) {
     console.error('AI Search failed:', error)
-    showAlertMessage('AI 검색에 실패했습니다. 다시 시도해주세요.', 'error')
   } finally {
     isLoading.value = false
   }
+}
+
+// AI 검색 결과 선택 - 새로 추가
+const selectAiResult = async (result) => {
+  selectedSido.value = result.sido
+  selectedGungu.value = result.gungu
+  selectedDong.value = result.dong
+  locationSearch()
+}
+
+// AI 검색 초기화 - 새로 추가
+const resetAiSearch = () => {
+  aiSearchCompleted.value = false
+  aiSearchResults.value = []
+  properties.value = []
+
+  // 검색 데이터 초기화 (선택사항)
+  Object.keys(aiSearchData).forEach((key) => {
+    aiSearchData[key] = ''
+  })
 }
 
 const updateAiSearchInfo = () => {
@@ -831,7 +894,7 @@ watch(
   margin: 0 auto;
 }
 
-/* Search Mode Toggle - 새로 추가 */
+/* Search Mode Toggle */
 .search-mode-toggle {
   display: flex;
   gap: 0.5rem;
@@ -864,7 +927,159 @@ watch(
   box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
 }
 
-/* AI Search Styles - 새로 추가 */
+/* AI 검색 결과 섹션 - 새로 추가 */
+.ai-results-section {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.ai-results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.ai-results-header h3 {
+  color: white;
+  font-size: 1.3rem;
+  font-weight: bold;
+  margin: 0;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.new-search-btn {
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid white;
+  border-radius: 12px;
+  color: #ff6b35;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.new-search-btn:hover {
+  background: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+}
+
+.ai-results-summary {
+  margin-bottom: 1.5rem;
+}
+
+.search-summary-info {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.summary-item {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.ai-results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.ai-result-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 15px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  backdrop-filter: blur(10px);
+}
+
+.ai-result-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.ai-result-card.selected {
+  border-color: #ff6b35;
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.1) 0%, rgba(255, 210, 63, 0.1) 100%);
+}
+
+.ai-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.ai-result-rank {
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.ai-result-score {
+  background: linear-gradient(135deg, #ffd23f 0%, #f7931e 100%);
+  color: #333;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.ai-result-content h4 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.ai-result-title {
+  margin: 0 0 1rem 0;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.ai-result-tags {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.ai-tag {
+  background: linear-gradient(135deg, rgba(255, 107, 53, 0.1) 0%, rgba(255, 210, 63, 0.1) 100%);
+  color: #ff6b35;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid rgba(255, 107, 53, 0.3);
+}
+
+.ai-result-reason {
+  margin: 0;
+  color: #555;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+/* AI Search Styles */
 .ai-search-group {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
@@ -1561,6 +1776,10 @@ watch(
   .date-selectors {
     flex-wrap: wrap;
   }
+
+  .ai-results-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1598,6 +1817,10 @@ watch(
   .map-legend {
     display: none;
   }
+
+  .search-summary-info {
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1611,6 +1834,10 @@ watch(
   }
 
   .search-section {
+    padding: 1rem;
+  }
+
+  .ai-results-section {
     padding: 1rem;
   }
 }
