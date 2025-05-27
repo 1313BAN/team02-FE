@@ -809,6 +809,7 @@ const handleAiSearch = async () => {
 
 // AI 검색 결과 선택 - 새로 추가
 const selectAiResult = async (result) => {
+  selectedProperty.value = false
   selectedSido.value = result.sido
   selectedGungu.value = result.gungu
   selectedDong.value = result.dong
@@ -819,7 +820,7 @@ const selectAiResult = async (result) => {
 const resetAiSearch = () => {
   aiSearchCompleted.value = false
   aiSearchResults.value = []
-  properties.value = []
+  selectedProperty.value = false
 
   // 검색 데이터 초기화 (선택사항)
   Object.keys(aiSearchData).forEach((key) => {
