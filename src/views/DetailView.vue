@@ -176,6 +176,7 @@
 <script>
 import { ref, reactive, onMounted } from 'vue'
 import api from '@/api/api.js'
+import CryptoJS from 'crypto-js'
 
 export default {
   name: 'MyPageView',
@@ -328,6 +329,8 @@ export default {
         // 비밀번호가 입력된 경우에만 포함
         if (editData.password) {
           updateData.password = editData.password
+          const hashedPassword = CryptoJS.SHA256(updateData.password).toString(CryptoJS.enc.Base64)
+          updateData.password = hashedPassword
         }
 
         const response = await api.put('/user/update', updateData)

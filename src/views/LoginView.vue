@@ -125,9 +125,11 @@ const handleLogin = async () => {
   try {
     // 비밀번호 해싱 예시
     const hashedPassword = CryptoJS.SHA256(formData.password).toString(CryptoJS.enc.Base64)
-    formData.password = hashedPassword
     // 실제 로그인 API 호출
-    const response = await api.post('/auth/login', formData)
+    const response = await api.post('/auth/login', {
+      email: formData.email,
+      password: hashedPassword,
+    })
 
     if (response.status == 200) {
       // 로그인 성공
