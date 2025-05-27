@@ -58,6 +58,7 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import api from '@/api/api.js'
 
 // Composables
 const router = useRouter()
@@ -114,38 +115,19 @@ const handleFindPassword = async () => {
 
   isLoading.value = true
   try {
-    // 비밀번호 찾기 API 호출
-    const response = await fetch('/api/auth/find-password', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: formData.email,
-        name: formData.name,
-      }),
-    })
+    // 유저 확인
+    const response = await api.get('/auth/check?name=' + formData.name + '&email=' + formData.email)
 
-    const data = await response.json()
-
-    if (response.ok) {
-      // 비밀번호 재설정 이메일 발송 성공
-      resetSuccess.value = true
-      alert('비밀번호 재설정 링크가 이메일로 발송되었습니다.')
-      router.push('/loginForm')
-    } else {
-      // 실패 처리
-      if (data.message === 'User not found') {
-        errors.email = '등록되지 않은 이메일입니다.'
-      } else if (data.message === 'Name mismatch') {
-        errors.name = '이름이 일치하지 않습니다.'
-      } else {
-        errors.email = '비밀번호 찾기에 실패했습니다.'
-      }
+    if (response.status == 200) {
+      console.log('Password Reset Token:', response.data.data)
+      router.push({
+        path: '/updatePassword',
+        query: { passwordResetToken: response.data.data },
+      }) //비밀번호 재설정으로
     }
   } catch (error) {
     console.error('비밀번호 찾기 오류:', error)
-    errors.email = '서버 연결에 실패했습니다.'
+    errors.email = '잘못된 유저 정보입니다.'
   } finally {
     isLoading.value = false
   }
