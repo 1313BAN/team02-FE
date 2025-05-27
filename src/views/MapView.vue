@@ -596,15 +596,16 @@ const locationSearch = async () => {
       })
     }
 
-    const likeResponse = await api.get('/like')
-    const likeItems = likeResponse.data.data.map((p) => p.aptSeq)
+    if (!authStore.isLoggedIn) {
+      const likeResponse = await api.get('/like')
+      const likeItems = likeResponse.data.data.map((p) => p.aptSeq)
 
-    properties.value.forEach((property) => {
-      if (likeItems.includes(property.aptSeq)) {
-        property.isLike = true
-      }
-    })
-
+      properties.value.forEach((property) => {
+        if (likeItems.includes(property.aptSeq)) {
+          property.isLike = true
+        }
+      })
+    }
     // Update SGIS map with search results
     await updateSgisMap(properties.value)
     await insertDB()
