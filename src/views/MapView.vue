@@ -786,10 +786,14 @@ const toggleSearchMode = (isAiMode) => {
 }
 
 const handleAiSearch = async () => {
+  if (!authStore.isLoggedIn) {
+    alert('로그인 후 사용해주세요.')
+    router.push('/loginForm')
+    return
+  }
   isLoading.value = true
 
   try {
-    // AI 검색 API 호출 (실제 API 대신 샘플 데이터로 시뮬레이션)
     const response = await api.post('/recommendation/recommend', aiSearchData)
 
     // 검색 결과 저장
