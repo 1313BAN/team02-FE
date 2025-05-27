@@ -47,7 +47,7 @@
               <label class="checkbox-wrapper">
                 <input type="checkbox" v-model="rememberMe" class="checkbox" />
                 <span class="checkmark"></span>
-                로그인 상태 유지
+                아이디 저장
               </label>
               <RouterLink to="/resetPWForm" class="forgot-link">
                 비밀번호를 잊으셨나요?
@@ -135,7 +135,9 @@ const handleLogin = async () => {
       // 로그인 성공
       authStore.login(response.headers.authorization, response.data.data.nickname)
       if (rememberMe.value) {
-        sessionStorage.setItem('userEmail', response.data.email)
+        sessionStorage.setItem('userEmail', response.data.data.email)
+      } else {
+        sessionStorage.removeItem('userEmail')
       }
       router.push('/')
     }
