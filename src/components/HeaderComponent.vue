@@ -25,13 +25,15 @@
 </template>
 
 <script setup>
-import { RouterLink } from 'vue-router'
+import { useRouter, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 
+const router = useRouter()
 const authStore = useAuthStore()
 
 const logout = () => {
   authStore.logout()
+  router.push('/')
 }
 </script>
 
