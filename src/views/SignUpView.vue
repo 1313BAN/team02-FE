@@ -72,17 +72,17 @@
             </div>
 
             <div class="input-group">
-              <label for="phone" class="input-label">전화번호</label>
+              <label for="phoneNumber" class="input-label">전화번호</label>
               <input
                 type="tel"
-                id="phone"
-                v-model="formData.phone"
+                id="phoneNumber"
+                v-model="formData.phoneNumber"
                 placeholder="010-1234-5678"
                 class="input-field"
-                :class="{ error: errors.phone }"
+                :class="{ error: errors.phoneNumber }"
                 required
               />
-              <span v-if="errors.phone" class="error-message">{{ errors.phone }}</span>
+              <span v-if="errors.phoneNumber" class="error-message">{{ errors.phoneNumber }}</span>
             </div>
 
             <button type="submit" class="login-btn" :disabled="isLoading">
@@ -106,6 +106,9 @@
 <script setup>
 import { ref, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import api from '@/api/api'
+
+// const api = localAxios()
 
 // Composables
 const router = useRouter()
@@ -116,7 +119,7 @@ const formData = reactive({
   password: '',
   name: '',
   nickname: '',
-  phone: '',
+  phoneNumber: '',
 })
 
 const errors = reactive({})
@@ -173,10 +176,10 @@ const validateForm = () => {
   }
 
   // 전화번호 validation
-  if (!formData.phone) {
-    errors.phone = '전화번호를 입력해주세요.'
-  } else if (!isValidPhone(formData.phone)) {
-    errors.phone = '올바른 전화번호 형식이 아닙니다. (010-1234-5678)'
+  if (!formData.phoneNumber) {
+    errors.phoneNumber = '전화번호를 입력해주세요.'
+  } else if (!isValidPhone(formData.phoneNumber)) {
+    errors.phoneNumber = '올바른 전화번호 형식이 아닙니다. (010-1234-5678)'
   }
 
   return Object.keys(errors).length === 0
@@ -207,103 +210,45 @@ const isValidNickname = (nickname) => {
   return nicknameRegex.test(nickname)
 }
 
-const isValidPhone = (phone) => {
+const isValidPhone = (phoneNumber) => {
   // 010-1234-5678 또는 01012345678 형식
   const phoneRegex = /^010-?([0-9]{4})-?([0-9]{4})$/
-  return phoneRegex.test(phone)
+  return phoneRegex.test(phoneNumber)
 }
 
-const formatPhoneNumber = (phone) => {
+const formatPhoneNumber = (phoneNumber) => {
   // 전화번호를 010-1234-5678 형식으로 변환
-  const cleanPhone = phone.replace(/\D/g, '')
+  const cleanPhone = phoneNumber.replace(/\D/g, '')
   if (cleanPhone.length === 11 && cleanPhone.startsWith('010')) {
     return cleanPhone.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3')
   }
-  return phone
-}
-
-const checkEmailDuplicate = async (email) => {
-  try {
-    const response = await fetch(`/api/auth/check-email?email=${encodeURIComponent(email)}`)
-    const data = await response.json()
-    return data.exists
-  } catch (error) {
-    console.error('이메일 중복 확인 오류:', error)
-    return false
-  }
-}
-
-const checkNicknameDuplicate = async (nickname) => {
-  try {
-    const response = await fetch(
-      `/api/auth/check-nickname?nickname=${encodeURIComponent(nickname)}`,
-    )
-    const data = await response.json()
-    return data.exists
-  } catch (error) {
-    console.error('닉네임 중복 확인 오류:', error)
-    return false
-  }
+  return phoneNumber
 }
 
 const handleSignup = async () => {
   if (!validateForm()) return
-
   // 전화번호 포맷팅
-  formData.phone = formatPhoneNumber(formData.phone)
+  formData.phoneNumber = formatPhoneNumber(formData.phoneNumber)
 
   isLoading.value = true
   try {
-    // 이메일 중복 확인
-    const emailExists = await checkEmailDuplicate(formData.email)
-    if (emailExists) {
-      errors.email = '이미 사용 중인 이메일입니다.'
-      isLoading.value = false
-      return
-    }
-
-    // 닉네임 중복 확인
-    const nicknameExists = await checkNicknameDuplicate(formData.nickname)
-    if (nicknameExists) {
-      errors.nickname = '이미 사용 중인 닉네임입니다.'
-      isLoading.value = false
-      return
-    }
-
     // 회원가입 API 호출
-    const response = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: formData.email,
-        password: formData.password,
-        name: formData.name,
-        nickname: formData.nickname,
-        phone: formData.phone,
-      }),
-    })
+    const response = await api.post('/auth/signup', formData)
 
-    const data = await response.json()
-
-    if (response.ok) {
+    if (response.status == 201) {
       // 회원가입 성공
       alert('회원가입이 완료되었습니다. 로그인해주세요.')
       router.push('/loginForm')
     } else {
-      // 회원가입 실패
-      if (data.message === 'Email already exists') {
-        errors.email = '이미 사용 중인 이메일입니다.'
-      } else if (data.message === 'Nickname already exists') {
-        errors.nickname = '이미 사용 중인 닉네임입니다.'
-      } else {
-        errors.email = '회원가입에 실패했습니다.'
-      }
     }
   } catch (error) {
+    // 회원가입 실패
+    if (error.status == 409) {
+      errors.email = '이미 존재하는 이메일입니다.'
+    } else {
+      errors.email = '서버 연결에 실패했습니다.'
+    }
     console.error('회원가입 오류:', error)
-    errors.email = '서버 연결에 실패했습니다.'
   } finally {
     isLoading.value = false
   }
@@ -312,17 +257,17 @@ const handleSignup = async () => {
 // Watchers
 // 전화번호 입력 시 자동 포맷팅
 watch(
-  () => formData.phone,
+  () => formData.phoneNumber,
   (newPhone) => {
     if (newPhone && newPhone.length >= 3) {
       const cleanPhone = newPhone.replace(/\D/g, '')
       if (cleanPhone.length <= 11) {
         if (cleanPhone.length >= 7) {
-          formData.phone = cleanPhone
+          formData.phoneNumber = cleanPhone
             .replace(/(\d{3})(\d{4})(\d{0,4})/, '$1-$2-$3')
             .replace(/-$/, '')
         } else if (cleanPhone.length >= 3) {
-          formData.phone = cleanPhone.replace(/(\d{3})(\d{0,4})/, '$1-$2').replace(/-$/, '')
+          formData.phoneNumber = cleanPhone.replace(/(\d{3})(\d{0,4})/, '$1-$2').replace(/-$/, '')
         }
       }
     }

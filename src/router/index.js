@@ -3,7 +3,7 @@ import HomeView from '../views/HomeView.vue'
 import MapView from '../views/MapView.vue'
 import LoginView from '../views/LoginView.vue'
 import SignUpView from '../views/SignUpView.vue'
-import FindPWView from '../views/FindPWView.vue'
+import ResetPWView from '../views/ResetPWView.vue'
 import DetailView from '../views/DetailView.vue'
 
 const router = createRouter({
@@ -13,7 +13,7 @@ const router = createRouter({
     { path: '/map', component: MapView },
     { path: '/loginForm', component: LoginView },
     { path: '/signUpForm', component: SignUpView },
-    { path: '/findPWForm', component: FindPWView },
+    { path: '/resetPWForm', component: ResetPWView },
     { path: '/detail', component: DetailView },
   ],
 })

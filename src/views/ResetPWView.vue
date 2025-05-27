@@ -5,7 +5,7 @@
       <div class="login-container">
         <div class="login-card">
           <div class="login-header">
-            <h1 class="login-title">비밀번호 찾기</h1>
+            <h1 class="login-title">비밀번호 재설정</h1>
             <p class="login-subtitle">회원가입한 이메일과 이름을 입력해주세요.</p>
           </div>
 
@@ -40,7 +40,7 @@
 
             <button type="submit" class="login-btn" :disabled="isLoading">
               <span v-if="isLoading" class="loading-spinner"></span>
-              {{ isLoading ? '비밀번호 찾기 중...' : '비밀번호 찾기' }}
+              {{ isLoading ? '비밀번호 재설정 중...' : '비밀번호 재설정' }}
             </button>
           </form>
 

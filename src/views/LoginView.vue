@@ -49,7 +49,9 @@
                 <span class="checkmark"></span>
                 로그인 상태 유지
               </label>
-              <RouterLink to="/findPWForm" class="forgot-link"> 비밀번호를 잊으셨나요? </RouterLink>
+              <RouterLink to="/resetPWForm" class="forgot-link">
+                비밀번호를 잊으셨나요?
+              </RouterLink>
             </div>
 
             <button type="submit" class="login-btn" :disabled="isLoading">
@@ -73,6 +75,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import api from '@/api/api'
+
+// const api = localAxios
 
 // Composables
 const router = useRouter()
@@ -104,15 +109,6 @@ const validateForm = () => {
     errors.email = '올바른 이메일 형식이 아닙니다.'
   }
 
-  // 비밀번호 validation
-  if (!formData.password) {
-    errors.password = '비밀번호를 입력해주세요.'
-  } else if (formData.password.length < 6) {
-    errors.password = '비밀번호는 6자 이상이어야 합니다.'
-  } else if (formData.password.length > 20) {
-    errors.password = '비밀번호는 20자 이하여야 합니다.'
-  }
-
   return Object.keys(errors).length === 0
 }
 
@@ -127,40 +123,29 @@ const handleLogin = async () => {
   isLoading.value = true
   try {
     // 실제 로그인 API 호출
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: formData.email,
-        password: formData.password,
-        rememberMe: rememberMe.value,
-      }),
-    })
+    const response = await api.post('/auth/login', formData)
 
-    const data = await response.json()
+    console.log(response)
+    console.log(response.headers.authorization)
 
-    if (response.ok) {
+    if (response.status == 200) {
       // 로그인 성공
-      localStorage.setItem('token', data.token)
+      sessionStorage.setItem('accessToken', response.headers.authorization)
       if (rememberMe.value) {
-        localStorage.setItem('userEmail', formData.email)
+        sessionStorage.setItem('userEmail', formData.email)
       }
       router.push('/')
-    } else {
-      // 로그인 실패
-      if (data.message === 'Invalid email') {
-        errors.email = '존재하지 않는 이메일입니다.'
-      } else if (data.message === 'Invalid password') {
-        errors.password = '비밀번호가 일치하지 않습니다.'
-      } else {
-        errors.email = '로그인에 실패했습니다.'
-      }
     }
   } catch (error) {
+    // 회원가입 실패
+    if (error.status == 401) {
+      errors.email = error.response.data.message
+    } else if (error.status == 404) {
+      errors.email = error.response.data.message
+    } else {
+      errors.email = '서버 연결에 실패했습니다.'
+    }
     console.error('로그인 오류:', error)
-    errors.email = '서버 연결에 실패했습니다.'
   } finally {
     isLoading.value = false
   }
@@ -169,7 +154,7 @@ const handleLogin = async () => {
 // Lifecycle
 onMounted(() => {
   // 이전에 저장된 이메일이 있으면 불러오기
-  const savedEmail = localStorage.getItem('userEmail')
+  const savedEmail = sessionStorage.getItem('userEmail')
   if (savedEmail) {
     formData.email = savedEmail
     rememberMe.value = true
