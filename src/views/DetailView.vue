@@ -9,8 +9,25 @@
             <p class="mypage-subtitle">내 정보를 확인하고 수정해보세요!</p>
           </div>
 
+          <!-- 로딩 상태 -->
+          <div v-if="isInitialLoading" class="loading-container">
+            <div class="loading-spinner large"></div>
+            <p class="loading-text">정보를 불러오는 중...</p>
+          </div>
+
+          <!-- 에러 상태 -->
+          <div v-else-if="loadError" class="error-container">
+            <p class="error-text">정보를 불러오는 중 오류가 발생했습니다.</p>
+            <button @click="fetchUserData" class="retry-btn">다시 시도</button>
+          </div>
+
           <!-- 조회 모드 -->
-          <div v-if="!isEditMode" class="view-mode">
+          <div v-else-if="!isEditMode" class="view-mode">
+            <div class="info-group">
+              <label class="info-label">이름</label>
+              <div class="info-display">{{ userInfo.name }}</div>
+            </div>
+
             <div class="info-group">
               <label class="info-label">닉네임</label>
               <div class="info-display">{{ userInfo.nickname }}</div>
@@ -21,11 +38,30 @@
               <div class="info-display">{{ userInfo.email }}</div>
             </div>
 
+            <div class="info-group">
+              <label class="info-label">전화번호</label>
+              <div class="info-display">{{ userInfo.phoneNumber }}</div>
+            </div>
+
             <button @click="enterEditMode" class="edit-btn">✏️ 정보 수정</button>
           </div>
 
           <!-- 수정 모드 -->
           <form v-else @submit.prevent="handleUpdate" class="edit-form">
+            <div class="input-group">
+              <label for="name" class="input-label">이름</label>
+              <input
+                type="text"
+                id="name"
+                v-model="editData.name"
+                placeholder="이름을 입력하세요"
+                class="input-field"
+                :class="{ error: errors.name }"
+                required
+              />
+              <span v-if="errors.name" class="error-message">{{ errors.name }}</span>
+            </div>
+
             <div class="input-group">
               <label for="nickname" class="input-label">닉네임</label>
               <input
@@ -55,6 +91,20 @@
             </div>
 
             <div class="input-group">
+              <label for="phoneNumber" class="input-label">전화번호</label>
+              <input
+                type="tel"
+                id="phoneNumber"
+                v-model="editData.phoneNumber"
+                placeholder="전화번호를 입력하세요 (예: 010-1234-5678)"
+                class="input-field"
+                :class="{ error: errors.phoneNumber }"
+                required
+              />
+              <span v-if="errors.phoneNumber" class="error-message">{{ errors.phoneNumber }}</span>
+            </div>
+
+            <div class="input-group">
               <label for="password" class="input-label">새 비밀번호</label>
               <div class="password-wrapper">
                 <input
@@ -77,14 +127,14 @@
               <button type="button" @click="cancelEdit" class="cancel-btn">취소</button>
               <button type="submit" class="save-btn" :disabled="isLoading">
                 <span v-if="isLoading" class="loading-spinner"></span>
-                {{ isLoading ? '저장 중...' : '저장' }}
+                {{ isLoading ? '저장 중...' : '수정 완료' }}
               </button>
             </div>
           </form>
         </div>
 
         <!-- 찜한 매물 섹션 -->
-        <div class="favorites-section">
+        <div v-if="!isInitialLoading && !loadError" class="favorites-section">
           <div class="favorites-header">
             <h2 class="favorites-title">💖 찜한 매물</h2>
             <span class="favorites-count">{{ favoriteProperties.length }}개</span>
@@ -93,14 +143,23 @@
           <div v-if="favoriteProperties.length > 0" class="favorites-list">
             <div v-for="property in favoriteProperties" :key="property.id" class="property-card">
               <div class="property-info">
-                <h3 class="property-name">{{ property.name }}</h3>
-                <p class="property-location">📍 {{ property.location }}</p>
+                <h3 class="property-name">{{ property.aptNm }}</h3>
+                <p class="property-location">
+                  📍
+                  {{
+                    property.roadNm +
+                    ' ' +
+                    property.roadNmBonbun +
+                    (property.roadNmBubun != 0 ? '-' + property.roadNmBubun : '') +
+                    ' ' +
+                    property.aptNm
+                  }}
+                </p>
                 <div class="property-details">
-                  <span class="property-type">{{ property.type }}</span>
-                  <span class="property-price">{{ property.price }}</span>
+                  <span class="property-type">아파트</span>
                 </div>
               </div>
-              <button @click="removeFavorite(property.id)" class="remove-btn">❌</button>
+              <button @click="removeFavorite(property.aptSeq)" class="remove-btn">❌</button>
             </div>
           </div>
 
@@ -115,72 +174,90 @@
 </template>
 
 <script>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import api from '@/api/api.js'
 
 export default {
   name: 'MyPageView',
   setup() {
     // 반응형 데이터
     const userInfo = reactive({
-      nickname: '맛집탐험가',
-      email: 'foodlover@example.com',
+      name: '',
+      nickname: '',
+      email: '',
+      phoneNumber: '',
     })
 
     const editData = reactive({
+      name: '',
       nickname: '',
       email: '',
+      phoneNumber: '',
       password: '',
     })
 
-    const favoriteProperties = ref([
-      {
-        id: 1,
-        name: '래미안 강남팰리스',
-        location: '서울시 강남구 논현동',
-        type: '아파트',
-        price: '15억',
-      },
-      {
-        id: 2,
-        name: '힐스테이트 청담',
-        location: '서울시 강남구 청담동',
-        type: '아파트',
-        price: '12억',
-      },
-      {
-        id: 3,
-        name: '자이 서초',
-        location: '서울시 서초구 서초동',
-        type: '아파트',
-        price: '9억',
-      },
-      {
-        id: 4,
-        name: '트리마제 목동',
-        location: '서울시 양천구 목동',
-        type: '아파트',
-        price: '6억',
-      },
-    ])
+    const favoriteProperties = ref([])
 
     const errors = reactive({})
     const isEditMode = ref(false)
     const showPassword = ref(false)
     const isLoading = ref(false)
+    const isInitialLoading = ref(true)
+    const loadError = ref(false)
+
+    // API 호출 함수들
+    const fetchUserData = async () => {
+      try {
+        isInitialLoading.value = true
+        loadError.value = false
+
+        const response = await api.get('/user')
+
+        // 사용자 정보 업데이트
+        userInfo.name = response.data.data.name || ''
+        userInfo.nickname = response.data.data.nickname || ''
+        userInfo.email = response.data.data.email || ''
+        userInfo.phoneNumber = response.data.data.phoneNumber || ''
+
+        // 찜한 매물 정보도 함께 받아온다면
+        if (response.data.data.userLikes) {
+          favoriteProperties.value = response.data.data.userLikes
+        }
+
+        console.log('사용자 정보 로드 완료:', response.data.data)
+      } catch (error) {
+        console.error('사용자 정보 로드 실패:', error)
+        loadError.value = true
+
+        // 에러에 따른 처리
+        if (error.response?.status === 401) {
+          // 인증 실패 - 로그인 페이지로 리다이렉트 등
+          console.log('인증이 필요합니다.')
+        } else {
+          console.log('서버 오류가 발생했습니다.')
+        }
+      } finally {
+        isInitialLoading.value = false
+      }
+    }
 
     // 메서드들
     const enterEditMode = () => {
       isEditMode.value = true
+      editData.name = userInfo.name
       editData.nickname = userInfo.nickname
       editData.email = userInfo.email
+      editData.phoneNumber = userInfo.phoneNumber
       editData.password = ''
       Object.keys(errors).forEach((key) => delete errors[key])
     }
 
     const cancelEdit = () => {
       isEditMode.value = false
+      editData.name = ''
       editData.nickname = ''
       editData.email = ''
+      editData.phoneNumber = ''
       editData.password = ''
       Object.keys(errors).forEach((key) => delete errors[key])
       showPassword.value = false
@@ -195,8 +272,20 @@ export default {
       return emailRegex.test(email)
     }
 
+    const isValidPhoneNumber = (phoneNumber) => {
+      // 한국 전화번호 패턴 (010-1234-5678, 01012345678 등)
+      const phoneRegex = /^(010|011|016|017|018|019)-?\d{3,4}-?\d{4}$/
+      return phoneRegex.test(phoneNumber.replace(/\s/g, ''))
+    }
+
     const validateForm = () => {
       Object.keys(errors).forEach((key) => delete errors[key])
+
+      if (!editData.name.trim()) {
+        errors.name = '이름을 입력해주세요.'
+      } else if (editData.name.length < 2) {
+        errors.name = '이름은 2자 이상이어야 합니다.'
+      }
 
       if (!editData.nickname.trim()) {
         errors.nickname = '닉네임을 입력해주세요.'
@@ -208,6 +297,12 @@ export default {
         errors.email = '이메일을 입력해주세요.'
       } else if (!isValidEmail(editData.email)) {
         errors.email = '올바른 이메일 형식이 아닙니다.'
+      }
+
+      if (!editData.phoneNumber.trim()) {
+        errors.phoneNumber = '전화번호를 입력해주세요.'
+      } else if (!isValidPhoneNumber(editData.phoneNumber)) {
+        errors.phoneNumber = '올바른 전화번호 형식이 아닙니다. (예: 010-1234-5678)'
       }
 
       if (editData.password && editData.password.length < 6) {
@@ -222,28 +317,64 @@ export default {
 
       isLoading.value = true
       try {
-        console.log('정보 업데이트:', editData)
+        // API로 업데이트 요청
+        const updateData = {
+          name: editData.name,
+          nickname: editData.nickname,
+          email: editData.email,
+          phoneNumber: editData.phoneNumber,
+        }
 
-        // 임시 업데이트 처리 (실제 구현 시 API 호출)
-        setTimeout(() => {
-          userInfo.nickname = editData.nickname
-          userInfo.email = editData.email
-          isLoading.value = false
-          isEditMode.value = false
-          alert('정보가 성공적으로 업데이트되었습니다!')
-        }, 1000)
+        // 비밀번호가 입력된 경우에만 포함
+        if (editData.password) {
+          updateData.password = editData.password
+        }
+
+        const response = await api.put('/user/update', updateData)
+
+        // 성공시 로컬 데이터 업데이트
+        userInfo.name = editData.name
+        userInfo.nickname = editData.nickname
+        userInfo.email = editData.email
+        userInfo.phoneNumber = editData.phoneNumber
+
+        isEditMode.value = false
+        alert('정보가 성공적으로 업데이트되었습니다!')
+
+        console.log('업데이트 성공:', response.data)
       } catch (error) {
-        isLoading.value = false
         console.error('업데이트 오류:', error)
-        alert('업데이트 중 오류가 발생했습니다.')
+
+        // 에러 타입에 따른 처리
+        if (error.response?.status === 400) {
+          alert('입력한 정보를 확인해주세요.')
+        } else if (error.response?.status === 409) {
+          alert('이미 사용중인 이메일입니다.')
+        } else {
+          alert('업데이트 중 오류가 발생했습니다.')
+        }
+      } finally {
+        isLoading.value = false
       }
     }
 
-    const removeFavorite = (propertyId) => {
-      favoriteProperties.value = favoriteProperties.value.filter(
-        (property) => property.id !== propertyId,
-      )
+    const removeFavorite = async (aptSeq) => {
+      try {
+        await api.delete(`/like/${aptSeq}`)
+        favoriteProperties.value = favoriteProperties.value.filter(
+          (property) => property.aptSeq !== aptSeq,
+        )
+        console.log('찜 해제 완료:', aptSeq)
+      } catch (error) {
+        console.error('찜 해제 실패:', error)
+        alert('찜 해제 중 오류가 발생했습니다.')
+      }
     }
+
+    // 컴포넌트 마운트시 데이터 로드
+    onMounted(() => {
+      fetchUserData()
+    })
 
     return {
       userInfo,
@@ -253,11 +384,14 @@ export default {
       isEditMode,
       showPassword,
       isLoading,
+      isInitialLoading,
+      loadError,
       enterEditMode,
       cancelEdit,
       togglePassword,
       handleUpdate,
       removeFavorite,
+      fetchUserData,
     }
   },
 }
@@ -331,6 +465,38 @@ export default {
 .mypage-subtitle {
   color: #666;
   font-size: 0.9rem;
+}
+
+/* 로딩 및 에러 상태 */
+.loading-container,
+.error-container {
+  text-align: center;
+  padding: 3rem 2rem;
+}
+
+.loading-text,
+.error-text {
+  color: #666;
+  font-size: 1rem;
+  margin-top: 1rem;
+}
+
+.retry-btn {
+  margin-top: 1rem;
+  padding: 0.8rem 1.5rem;
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  color: white;
+  border: none;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.retry-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(255, 107, 53, 0.3);
 }
 
 /* 조회 모드 스타일 */
@@ -512,6 +678,13 @@ export default {
   animation: spin 1s linear infinite;
 }
 
+.loading-spinner.large {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 107, 53, 0.2);
+  border-top: 3px solid #ff6b35;
+}
+
 @keyframes spin {
   0% {
     transform: rotate(0deg);
@@ -610,7 +783,7 @@ export default {
   font-weight: 600;
 }
 
-.property-price {
+.property-year {
   font-weight: 700;
   color: #ff6b35;
   font-size: 1rem;
