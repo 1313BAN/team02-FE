@@ -4,7 +4,7 @@
     <nav class="nav-container">
       <RouterLink to="/" class="logo">맞동산</RouterLink>
       <div class="welcome-message" v-if="authStore.isLoggedIn">
-        <span class="welcome-text">{{ nickname || '사용자' }}님 환영합니다! 👋</span>
+        <span class="welcome-text">{{ authStore.getNickname || '사용자' }}님 환영합니다! 👋</span>
       </div>
       <ul class="nav-menu">
         <li>
@@ -29,7 +29,6 @@ import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 
 const authStore = useAuthStore()
-const nickname = sessionStorage.getItem('nickname')
 
 const logout = () => {
   authStore.logout()

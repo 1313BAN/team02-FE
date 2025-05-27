@@ -3,9 +3,11 @@ import { defineStore } from 'pinia'
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     accessToken: sessionStorage.getItem('accessToken') || null,
+    nickname: sessionStorage.getItem('nickname') || null,
   }),
   getters: {
     isLoggedIn: (state) => !!state.accessToken,
+    getNickname: (state) => state.nickname,
   },
   actions: {
     login(token, nickname) {
