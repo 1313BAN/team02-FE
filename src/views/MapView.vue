@@ -259,7 +259,7 @@
 
         <div class="property-list" ref="propertyList">
           <div
-            v-for="property in filteredProperties"
+            v-for="property in properties"
             :key="property.id"
             class="property-card"
             :class="{ active: selectedProperty?.id === property.id }"
@@ -298,8 +298,20 @@
       <!-- Deal Details Section -->
       <div class="deal-section" v-if="selectedProperty">
         <div class="deal-header">
-          <h3>{{ selectedProperty.label }} 거래내역</h3>
-          <div class="deal-count">{{ deals.length }}건</div>
+          <div class="deal-title">
+            <h3>{{ selectedProperty.label }} 거래내역</h3>
+            <div class="deal-count">{{ deals.length }}건</div>
+          </div>
+
+          <div class="sort-options">
+            <select v-model="sortBy" class="sort-select">
+              <option value="latest">최신순</option>
+              <option value="price-low">가격 낮은순</option>
+              <option value="price-high">가격 높은순</option>
+              <option value="area-large">면적 넓은순</option>
+              <option value="area-small">면적 작은순</option>
+            </select>
+          </div>
         </div>
 
         <div v-if="isLoadingDeals" class="loading">
@@ -314,7 +326,7 @@
 
         <div v-else class="deal-list">
           <div
-            v-for="deal in deals"
+            v-for="deal in filteredDeals"
             :key="`${deal.aptSeq}-${deal.dealDate}-${deal.dealAmount}`"
             class="deal-card"
           >
@@ -438,23 +450,31 @@ const canAiSearch = computed(() => {
   )
 })
 
-const filteredProperties = computed(() => {
-  let filtered = properties.value
+const filteredDeals = computed(() => {
+  let filtered = deals.value
 
   // Sort properties
   switch (sortBy.value) {
     case 'price-low':
-      filtered.sort((a, b) => a.price - b.price)
+      filtered.sort(
+        (a, b) =>
+          parseInt(a.amount.replace(/,/g, ''), 10) - parseInt(b.amount.replace(/,/g, ''), 10),
+      )
       break
     case 'price-high':
-      filtered.sort((a, b) => b.price - a.price)
+      filtered.sort(
+        (a, b) =>
+          parseInt(b.amount.replace(/,/g, ''), 10) - parseInt(a.amount.replace(/,/g, ''), 10),
+      )
+      break
+    case 'area-small':
+      filtered.sort((a, b) => a.area - b.area)
       break
     case 'area-large':
       filtered.sort((a, b) => b.area - a.area)
       break
     default:
-      // Latest by deal date
-      filtered.sort((a, b) => new Date(b.dealDate) - new Date(a.dealDate))
+      filtered.sort((a, b) => new Date(b.date) - new Date(a.date))
   }
 
   return filtered
@@ -1488,9 +1508,9 @@ onMounted(() => {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid #eee;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
   background: linear-gradient(135deg, rgba(255, 107, 53, 0.1) 0%, rgba(255, 210, 63, 0.1) 100%);
+  gap: 10px;
 }
 
 .deal-header h3 {
@@ -1509,6 +1529,17 @@ onMounted(() => {
   font-weight: bold;
 }
 
+.deal-title {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sort-options {
+  align-self: flex-end; /* 좌측 정렬 (필요 시) */
+}
+
 .deal-section {
   height: 100%;
   overflow: hidden;
@@ -1518,7 +1549,7 @@ onMounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
-  height: 94%; /* flex item이 정확한 높이를 가지도록 */
+  height: 90%; /* flex item이 정확한 높이를 가지도록 */
 }
 
 .deal-card {
