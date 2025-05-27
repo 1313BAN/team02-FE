@@ -596,7 +596,7 @@ const locationSearch = async () => {
       })
     }
 
-    if (!authStore.isLoggedIn) {
+    if (authStore.isLoggedIn) {
       const likeResponse = await api.get('/like')
       const likeItems = likeResponse.data.data.map((p) => p.aptSeq)
 
