@@ -77,6 +77,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/api'
 import { useAuthStore } from '@/stores/authStore'
+import CryptoJS from 'crypto-js'
 
 // Composables
 const router = useRouter()
@@ -122,6 +123,9 @@ const handleLogin = async () => {
 
   isLoading.value = true
   try {
+    // 비밀번호 해싱 예시
+    const hashedPassword = CryptoJS.SHA256(formData.password).toString(CryptoJS.enc.Base64)
+    formData.password = hashedPassword
     // 실제 로그인 API 호출
     const response = await api.post('/auth/login', formData)
 

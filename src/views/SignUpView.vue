@@ -107,6 +107,7 @@
 import { ref, reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/api'
+import CryptoJS from 'crypto-js'
 
 // const api = localAxios()
 
@@ -232,6 +233,10 @@ const handleSignup = async () => {
 
   isLoading.value = true
   try {
+    // 비밀번호 해싱
+    const hashedPassword = CryptoJS.SHA256(formData.password).toString(CryptoJS.enc.Base64)
+    formData.password = hashedPassword
+
     // 회원가입 API 호출
     const response = await api.post('/auth/signup', formData)
 
