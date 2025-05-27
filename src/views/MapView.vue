@@ -273,6 +273,24 @@
               <h4 class="property-title">{{ property.label }}</h4>
               <p class="property-location">{{ property.address }}</p>
             </div>
+            <!-- 찜 하트 버튼 추가 -->
+            <button
+              class="favorite-btn"
+              :class="{ active: property.isLike }"
+              @click.stop="toggleFavorite(property)"
+              :disabled="property.isToggling"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                :class="{ filled: property.isLike, beating: property.isToggling }"
+              >
+                <path
+                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -334,8 +352,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import api from '@/api/api'
+import { useAuthStore } from '@/stores/authStore'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+const authStore = useAuthStore()
 
 // Location data
 const selectedSido = ref('')
@@ -358,14 +382,6 @@ const markers = []
 const bounds = []
 
 // Filter states
-const selectedType = ref('')
-const selectedDeal = ref('')
-const minPrice = ref('')
-const maxPrice = ref('')
-const minArea = ref('')
-const maxArea = ref('')
-const minFloor = ref('')
-const maxFloor = ref('')
 const sortBy = ref('latest')
 
 // Map and data states
@@ -424,38 +440,6 @@ const canAiSearch = computed(() => {
 
 const filteredProperties = computed(() => {
   let filtered = properties.value
-
-  if (selectedType.value) {
-    filtered = filtered.filter((p) => p.type === selectedType.value)
-  }
-
-  if (selectedDeal.value) {
-    filtered = filtered.filter((p) => p.dealType === selectedDeal.value)
-  }
-
-  if (minPrice.value) {
-    filtered = filtered.filter((p) => p.price >= parseInt(minPrice.value) * 10000)
-  }
-
-  if (maxPrice.value) {
-    filtered = filtered.filter((p) => p.price <= parseInt(maxPrice.value) * 10000)
-  }
-
-  if (minArea.value) {
-    filtered = filtered.filter((p) => p.area >= parseFloat(minArea.value))
-  }
-
-  if (maxArea.value) {
-    filtered = filtered.filter((p) => p.area <= parseFloat(maxArea.value))
-  }
-
-  if (minFloor.value) {
-    filtered = filtered.filter((p) => p.floor >= parseInt(minFloor.value))
-  }
-
-  if (maxFloor.value) {
-    filtered = filtered.filter((p) => p.floor <= parseInt(maxFloor.value))
-  }
 
   // Sort properties
   switch (sortBy.value) {
@@ -587,8 +571,19 @@ const locationSearch = async () => {
         address: address,
         utmk: utmkObject,
         label: aptNm,
+        isToggling: false,
+        isLike: false,
       })
     }
+
+    const likeResponse = await api.get('/like')
+    const likeItems = likeResponse.data.data.map((p) => p.aptSeq)
+
+    properties.value.forEach((property) => {
+      if (likeItems.includes(property.aptSeq)) {
+        property.isLike = true
+      }
+    })
 
     // Update SGIS map with search results
     await updateSgisMap(properties.value)
@@ -774,41 +769,8 @@ const handleAiSearch = async () => {
   isLoading.value = true
 
   try {
-    console.log(aiSearchData)
     // AI 검색 API 호출 (실제 API 대신 샘플 데이터로 시뮬레이션)
     const response = await api.post('/recommendation/recommend', aiSearchData)
-
-    console.log(response.data.data.recommendations)
-    // 샘플 AI 검색 결과 (실제 API 응답으로 교체)
-    const sampleResults = [
-      {
-        id: 1,
-        sido: '서울특별시',
-        gungu: '강남구',
-        dong: '역삼동',
-        score: 95,
-        reason: `${aiSearchData.job} 직종에 최적화된 업무 환경과 ${aiSearchData.transport} 접근성이 뛰어남. ${aiSearchData.neighborhoodMood}에 부합하는 분위기.`,
-        tags: ['교통편리', '직장접근성', '카페많음'],
-      },
-      {
-        id: 2,
-        sido: '서울특별시',
-        gungu: '서초구',
-        dong: '서초동',
-        score: 88,
-        reason: `예산 범위 내에서 ${aiSearchData.houseType} 매물이 풍부하고, ${aiSearchData.lifestyle}에 적합한 환경.`,
-        tags: ['예산적합', '생활편의', '조용함'],
-      },
-      {
-        id: 3,
-        sido: '서울특별시',
-        gungu: '송파구',
-        dong: '잠실동',
-        score: 82,
-        reason: `${aiSearchData.familySize}에 적합한 생활 인프라와 ${aiSearchData.age}대가 선호하는 문화시설 밀집.`,
-        tags: ['가족친화', '문화시설', '교육환경'],
-      },
-    ]
 
     // 검색 결과 저장
     aiSearchResults.value = response.data.data.recommendations
@@ -840,17 +802,37 @@ const resetAiSearch = () => {
   })
 }
 
-const updateAiSearchInfo = () => {
-  let searchDesc = `AI 추천: ${aiSearchData.houseType}`
-  if (aiSearchData.minBudget && aiSearchData.maxBudget) {
-    searchDesc += ` (${aiSearchData.minBudget}만원~${aiSearchData.maxBudget}만원)`
+// 찜 토글 함수
+const toggleFavorite = async (property) => {
+  if (!authStore.isLoggedIn) {
+    alert('로그인 후 사용해주세요.')
+    router.push('/loginForm')
+    return
   }
+  // 중복 클릭 방지
+  if (property.isToggling) return
 
-  let period = `${aiSearchData.age}세 ${aiSearchData.job}`
+  property.isToggling = true
 
-  currentSearchInfo.value = {
-    location: searchDesc,
-    period: period,
+  try {
+    const aptSeq = property.aptSeq
+
+    if (property.isLike) {
+      // 찜 취소 API 호출
+      await api.delete(`/like/${aptSeq}`)
+      property.isLike = false
+    } else {
+      // 찜 추가 API 호출
+      await api.post(`/like/${aptSeq}`)
+      property.isLike = true
+    }
+  } catch (error) {
+    console.error('찜 상태 변경 실패:', error)
+  } finally {
+    // 하트 뛰는 애니메이션을 위한 딜레이
+    setTimeout(() => {
+      property.isToggling = false
+    }, 600)
   }
 }
 
@@ -863,15 +845,6 @@ onMounted(() => {
     initializeSgisMap()
   })
 })
-
-// Watchers
-watch(
-  [selectedType, selectedDeal, minPrice, maxPrice, minArea, maxArea, minFloor, maxFloor],
-  () => {
-    // Auto-filter when filter values change
-  },
-  { deep: true },
-)
 </script>
 
 <style scoped>
@@ -1839,6 +1812,142 @@ watch(
 
   .ai-results-section {
     padding: 1rem;
+  }
+}
+
+/* 찜 버튼 스타일 */
+.favorite-btn {
+  margin: 5px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+.favorite-btn:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.favorite-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.favorite-btn.active {
+  background: rgba(255, 255, 255, 1);
+  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+}
+
+/* 하트 SVG 스타일 */
+.favorite-btn svg {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center;
+}
+
+/* 기본 상태 (빈 하트) */
+.favorite-btn svg path {
+  fill: #e5e7eb;
+  stroke: #9ca3af;
+  stroke-width: 1;
+  transition: all 0.3s ease;
+}
+
+/* 호버 상태 */
+.favorite-btn:hover svg path {
+  fill: #fca5a5;
+  stroke: #ef4444;
+}
+
+/* 찜한 상태 (빨간 하트) */
+.favorite-btn svg.filled path {
+  fill: #ef4444;
+  stroke: #dc2626;
+  stroke-width: 0;
+}
+
+/* 클릭 애니메이션 */
+.favorite-btn svg.beating {
+  animation: heartBeat 0.6s ease-in-out;
+}
+
+@keyframes heartBeat {
+  0% {
+    transform: scale(1);
+  }
+  15% {
+    transform: scale(1.3);
+  }
+  30% {
+    transform: scale(1.1);
+  }
+  45% {
+    transform: scale(1.25);
+  }
+  60% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 찜 표시 인디케이터 */
+.favorite-indicator {
+  font-size: 0.75rem;
+  color: #ef4444;
+  font-weight: 600;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* 알림 애니메이션 */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .favorite-btn {
+    width: 32px;
+    height: 32px;
+    top: 6px;
+    right: 6px;
+  }
+
+  .favorite-btn svg {
+    width: 18px;
+    height: 18px;
   }
 }
 </style>

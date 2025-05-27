@@ -12,11 +12,13 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     login(token, nickname) {
       this.accessToken = token
+      this.nickname = nickname
       sessionStorage.setItem('accessToken', token)
       sessionStorage.setItem('nickname', nickname)
     },
     logout() {
       this.accessToken = null
+      this.nickname = null
       sessionStorage.removeItem('accessToken')
       sessionStorage.removeItem('nickname')
     },
